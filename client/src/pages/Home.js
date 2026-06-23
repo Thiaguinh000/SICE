@@ -1,6 +1,13 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 export default function Home() {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    window.location.reload(); // Recarrega para que o App.js reavalie o token e redirecione
+  };
+
   return (
     <div 
       style={{ 
@@ -31,13 +38,21 @@ export default function Home() {
                 Ver agendamentos pendentes
               </Link>
             </li>
-            <li>
+            <li className="mb-3">
               <Link
                 to="/agendamentos/concluidos"
                 className="btn btn-success w-100"
               >
                 Ver agendamentos concluídos
               </Link>
+            </li>
+            <li>
+              <button
+                onClick={handleLogout}
+                className="btn btn-danger w-100 mt-2"
+              >
+                Sair (Logout)
+              </button>
             </li>
           </ul>
         </nav>

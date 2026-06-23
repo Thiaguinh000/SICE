@@ -51,7 +51,7 @@ const registerUser = async (req, res) => {
       nome,
       email,
       senha: senhaHash,
-      tipo,
+      tipo: 'cliente',
     });
 
     await novoUsuario.save();

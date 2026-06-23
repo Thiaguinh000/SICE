@@ -29,7 +29,7 @@ export default function Login({ onLogin }) {
 
       localStorage.setItem('token', data.token);
       onLogin(data.token);
-      navigate('/home');
+      navigate('/');
     } catch (error) {
       setMensagem('Erro na conexão com o servidor');
     }

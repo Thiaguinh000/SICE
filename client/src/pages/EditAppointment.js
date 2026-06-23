@@ -26,7 +26,10 @@ export default function EditAppointment() {
         }
 
         setServico(data.service);
-        setData(new Date(data.date).toISOString().slice(0, 16));
+        const localDate = new Date(data.date);
+        const offset = localDate.getTimezoneOffset();
+        const adjustedDate = new Date(localDate.getTime() - (offset * 60 * 1000));
+        setData(adjustedDate.toISOString().slice(0, 16));
         setObservacoes(data.notes || '');
       } catch (error) {
         setMensagem('Erro na conexão com o servidor');
