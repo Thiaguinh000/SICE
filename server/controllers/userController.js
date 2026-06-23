@@ -35,7 +35,7 @@ const loginUser = async (req, res) => {
 
 //Realizar registro
 const registerUser = async (req, res) => {
-  const { nome, email, senha, tipo } = req.body;
+  const { nome, email, senha, tipo, telefone, endereco } = req.body;
 
   try {
     const userExistente = await User.findOne({ email });
@@ -51,7 +51,9 @@ const registerUser = async (req, res) => {
       nome,
       email,
       senha: senhaHash,
-      tipo: 'cliente',
+      tipo: tipo || 'cliente',
+      telefone,
+      endereco,
     });
 
     await novoUsuario.save();
@@ -63,8 +65,21 @@ const registerUser = async (req, res) => {
   }
 };
 
+const getUserProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.userId).select('-senha');
+    if (!user) {
+      return res.status(404).json({ mensagem: 'Usuário não encontrado' });
+    }
+    res.json(user);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao buscar perfil' });
+  }
+};
 
 module.exports = {
   loginUser,
   registerUser,
+  getUserProfile,
 };

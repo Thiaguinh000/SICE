@@ -1,7 +1,5 @@
 import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
-import { useNavigate } from 'react-router-dom';
-
+import { useNavigate, Link } from 'react-router-dom';
 
 export default function Login({ onLogin }) {
   const [username, setUsername] = useState('');
@@ -13,8 +11,10 @@ export default function Login({ onLogin }) {
     e.preventDefault();
     setMensagem('');
 
+    const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:7777';
+
     try {
-      const response = await fetch('http://localhost:7777/api/users/login', {
+      const response = await fetch(`${API_URL}/api/users/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: username, senha: password }),
@@ -36,65 +36,52 @@ export default function Login({ onLogin }) {
   };
 
   return (
-    <div 
-      style={{ 
-        backgroundImage: "url('/images/salao.jpg')",
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        minHeight: '100vh',
-      }}
-    >
-      <div id="login" className="d-flex align-items-center justify-content-center" style={{ minHeight: '100vh' }}>
-        <div className="container">
-          <div id="login-row" className="row justify-content-center align-items-center">
-            <div id="login-column" className="col-md-6">
-              <div id="login-box" className="col-md-12 p-4" style={{ backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: '8px' }}>
-                <form id="login-form" className="form" onSubmit={handleSubmit}>
-                  <h3 className="text-center text-info">Login</h3>
+    <div className="eco-layout">
+      <div className="eco-card shadow">
+        <h2 className="text-center eco-title-primary">Login EcoColeta</h2>
+        <p className="text-center text-muted mb-4">Acesse sua conta para agendar e acompanhar descartes ecológicos.</p>
 
-                  {mensagem && <p className="text-danger">{mensagem}</p>}
-
-                  <div className="form-group">
-                    <label htmlFor="username" className="text-info">Usuário:</label><br />
-                    <input
-                      type="text"
-                      name="username"
-                      id="username"
-                      className="form-control"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="password" className="text-info">Senha:</label><br />
-                    <input
-                      type="password"
-                      name="password"
-                      id="password"
-                      className="form-control"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="form-group d-flex justify-content-between mt-4">
-                    <input
-                      type="submit"
-                      name="submit"
-                      className="btn btn-info btn-md"
-                      value="Enviar"
-                    />
-                    <a href="/register" className="btn btn-secondary btn-md ms-5">
-                      Registre-se
-                    </a>
-                  </div>
-                </form>
-              </div>
-            </div>
+        {mensagem && (
+          <div className="alert alert-danger" role="alert">
+            {mensagem}
           </div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          <div className="mb-3">
+            <label htmlFor="username" className="form-label">Email de Usuário</label>
+            <input
+              type="email"
+              id="username"
+              className="form-control"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              placeholder="seuemail@exemplo.com"
+            />
+          </div>
+
+          <div className="mb-4">
+            <label htmlFor="password" className="form-label">Senha</label>
+            <input
+              type="password"
+              id="password"
+              className="form-control"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              placeholder="Sua senha"
+            />
+          </div>
+
+          <button type="submit" className="btn-eco-primary w-100 mt-2">
+            Entrar no Painel
+          </button>
+        </form>
+
+        <div className="text-center mt-4">
+          <span className="text-muted">Ainda não tem cadastro? </span>
+          <Link to="/register" className="text-decoration-none eco-title-accent font-weight-bold">Registre-se</Link>
         </div>
       </div>
     </div>
