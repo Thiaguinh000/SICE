@@ -20,10 +20,10 @@ export default function Register() {
       const data = await response.json();
 
       if (!response.ok) {
-        return setMensagem(data.message || 'Erro ao registrar');
+        return setMensagem(data.message || 'Erro ao criar conta');
       }
 
-      setMensagem('Usuário registrado com sucesso!');
+      setMensagem('Conta criada com sucesso! Você já pode fazer login.');
       setNome('');
       setEmail('');
       setSenha('');
@@ -35,7 +35,7 @@ export default function Register() {
   return (
     <div
       style={{
-        backgroundImage: "url('/images/salao.jpg')",
+        backgroundImage: "url('/fundodosoftware.jpg')",
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         minHeight: '100vh',
@@ -48,15 +48,16 @@ export default function Register() {
               <div
                 id="login-box"
                 className="col-md-12 p-4"
-                style={{ backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: '8px' }}
+                style={{ backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: '8px' }}
               >
                 <form id="login-form" className="form" onSubmit={handleRegister}>
-                  <h3 className="text-center text-info">Registro</h3>
+                  <h2 className="text-center text-success mb-2">SICE</h2>
+                  <p className="text-center text-muted mb-4">Crie sua conta e ajude a dar um destino correto ao lixo eletrônico.</p>
 
-                  {mensagem && <p className="text-danger">{mensagem}</p>}
+                  {mensagem && <p className={`text-center ${mensagem.includes('sucesso') ? 'text-success' : 'text-danger'}`}>{mensagem}</p>}
 
-                  <div className="form-group">
-                    <label htmlFor="nome" className="text-info">Nome:</label><br />
+                  <div className="form-group mb-3">
+                    <label htmlFor="nome" className="text-success fw-bold">Nome completo:</label><br />
                     <input
                       type="text"
                       name="nome"
@@ -68,8 +69,8 @@ export default function Register() {
                     />
                   </div>
 
-                  <div className="form-group">
-                    <label htmlFor="email" className="text-info">Email:</label><br />
+                  <div className="form-group mb-3">
+                    <label htmlFor="email" className="text-success fw-bold">Email:</label><br />
                     <input
                       type="email"
                       name="email"
@@ -81,8 +82,8 @@ export default function Register() {
                     />
                   </div>
 
-                  <div className="form-group">
-                    <label htmlFor="senha" className="text-info">Senha:</label><br />
+                  <div className="form-group mb-4">
+                    <label htmlFor="senha" className="text-success fw-bold">Senha:</label><br />
                     <input
                       type="password"
                       name="senha"
@@ -98,10 +99,10 @@ export default function Register() {
                     <input
                       type="submit"
                       name="submit"
-                      className="btn btn-info btn-md"
-                      value="Registrar"
+                      className="btn btn-success btn-md px-4"
+                      value="Criar Conta"
                     />
-                    <a href="/login" className="btn btn-secondary btn-md ml-3">Voltar para login</a>
+                    <a href="/login" className="btn btn-outline-secondary btn-md">Voltar para login</a>
                   </div>
                 </form>
               </div>
@@ -111,5 +112,4 @@ export default function Register() {
       </div>
     </div>
   );
-
 }

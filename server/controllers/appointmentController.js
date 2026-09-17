@@ -2,13 +2,19 @@ const Appointment = require('../models/Appointment');
 
 // Criar novo agendamento
 const createAppointment = async (req, res) => {
-  const { date, service, notes } = req.body;
+  const { date, time, service, brand, model, quantity, condition, address, notes } = req.body;
 
   try {
     const newAppointment = new Appointment({
       client: req.userId,
       date,
+      time,
       service,
+      brand,
+      model,
+      quantity,
+      condition,
+      address,
       notes,
     });
 
@@ -16,24 +22,28 @@ const createAppointment = async (req, res) => {
     res.status(201).json(newAppointment);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Erro ao criar agendamento' });
+    res.status(500).json({ message: 'Erro ao solicitar coleta' });
   }
 };
 
 // Listar agendamentos, permitindo o filtro de status (agendamento pendente, concluido etc)
 const getAppointments = async (req, res) => {
   const userId = req.userId;
+  const userTipo = req.userTipo;
   const { status } = req.query;
 
-  const filtro = { client: userId };
+  const filtro = {};
+  if (userTipo === 'usuario' || userTipo === 'cliente') {
+    filtro.client = userId;
+  }
   if (status) filtro.status = status;
 
   try {
-    const agendamentos = await Appointment.find(filtro).sort({ date: 1 });
+    const agendamentos = await Appointment.find(filtro).sort({ date: 1 }).populate('client', 'nome email');
     res.json(agendamentos);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Erro ao buscar agendamentos' });
+    res.status(500).json({ message: 'Erro ao buscar coletas' });
   }
 };
 
@@ -42,41 +52,60 @@ const getAppointmentById = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const appointment = await Appointment.findOne({ _id: id, client: req.userId });
+    const filtro = { _id: id };
+    if (req.userTipo === 'usuario' || req.userTipo === 'cliente') {
+      filtro.client = req.userId;
+    }
+
+    const appointment = await Appointment.findOne(filtro).populate('client', 'nome email');
 
     if (!appointment) {
-      return res.status(404).json({ message: 'Agendamento não encontrado' });
+      return res.status(404).json({ message: 'Coleta não encontrada' });
     }
 
     res.json(appointment);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Erro ao buscar agendamento' });
+    res.status(500).json({ message: 'Erro ao buscar coleta' });
   }
 };
 
 // Editar agendamento
 const updateAppointment = async (req, res) => {
   const { id } = req.params;
-  const { date, service, notes } = req.body;
+  const { date, time, service, brand, model, quantity, condition, address, notes, status, destination } = req.body;
 
   try {
-    const appointment = await Appointment.findOne({ _id: id, client: req.userId });
+    const filtro = { _id: id };
+    if ((req.userTipo === 'usuario' || req.userTipo === 'cliente') && !status && !destination) {
+      // Allow user to edit their own collection if not changing protected fields
+      filtro.client = req.userId;
+    }
+
+    const appointment = await Appointment.findOne(filtro);
 
     if (!appointment) {
-      return res.status(404).json({ mensagem: 'Agendamento não encontrado' });
+      return res.status(404).json({ mensagem: 'Coleta não encontrada' });
     }
 
     if (date) appointment.date = date;
+    if (time) appointment.time = time;
     if (service) appointment.service = service;
+    if (brand) appointment.brand = brand;
+    if (model) appointment.model = model;
+    if (quantity) appointment.quantity = quantity;
+    if (condition) appointment.condition = condition;
+    if (address) appointment.address = address;
     if (notes) appointment.notes = notes;
+    if (status) appointment.status = status;
+    if (destination) appointment.destination = destination;
 
     await appointment.save();
 
-    res.json({ mensagem: 'Agendamento atualizado com sucesso', agendamento: appointment });
+    res.json({ mensagem: 'Coleta atualizada com sucesso', agendamento: appointment });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ mensagem: 'Erro ao atualizar agendamento' });
+    res.status(500).json({ mensagem: 'Erro ao atualizar coleta' });
   }
 };
 
@@ -85,19 +114,23 @@ const deleteAppointment = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const appointment = await Appointment.findOneAndDelete({ _id: id, client: req.userId });
-
-    if (!appointment) {
-      return res.status(404).json({ mensagem: 'Agendamento não encontrado' });
+    const filtro = { _id: id };
+    if (req.userTipo === 'usuario' || req.userTipo === 'cliente') {
+      filtro.client = req.userId;
     }
 
-    res.json({ mensagem: 'Agendamento deletado com sucesso' });
+    const appointment = await Appointment.findOneAndDelete(filtro);
+
+    if (!appointment) {
+      return res.status(404).json({ mensagem: 'Coleta não encontrada' });
+    }
+
+    res.json({ mensagem: 'Coleta cancelada com sucesso' });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ mensagem: 'Erro ao deletar agendamento' });
+    res.status(500).json({ mensagem: 'Erro ao cancelar coleta' });
   }
 };
-
 
 module.exports = {
   createAppointment,

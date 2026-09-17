@@ -1,7 +1,5 @@
 import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
-
 
 export default function Login({ onLogin }) {
   const [username, setUsername] = useState('');
@@ -29,7 +27,7 @@ export default function Login({ onLogin }) {
 
       localStorage.setItem('token', data.token);
       onLogin(data.token);
-      navigate('/home');
+      navigate('/');
     } catch (error) {
       setMensagem('Erro na conexão com o servidor');
     }
@@ -38,7 +36,7 @@ export default function Login({ onLogin }) {
   return (
     <div 
       style={{ 
-        backgroundImage: "url('/images/salao.jpg')",
+        backgroundImage: "url('/fundodosoftware.jpg')",
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         minHeight: '100vh',
@@ -48,14 +46,15 @@ export default function Login({ onLogin }) {
         <div className="container">
           <div id="login-row" className="row justify-content-center align-items-center">
             <div id="login-column" className="col-md-6">
-              <div id="login-box" className="col-md-12 p-4" style={{ backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: '8px' }}>
+              <div id="login-box" className="col-md-12 p-4" style={{ backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: '8px' }}>
                 <form id="login-form" className="form" onSubmit={handleSubmit}>
-                  <h3 className="text-center text-info">Login</h3>
+                  <h2 className="text-center text-success mb-2">SICE</h2>
+                  <p className="text-center text-muted mb-4">Acesse sua conta para solicitar ou gerenciar coletas</p>
 
-                  {mensagem && <p className="text-danger">{mensagem}</p>}
+                  {mensagem && <p className="text-danger text-center">{mensagem}</p>}
 
-                  <div className="form-group">
-                    <label htmlFor="username" className="text-info">Usuário:</label><br />
+                  <div className="form-group mb-3">
+                    <label htmlFor="username" className="text-success fw-bold">E-mail:</label><br />
                     <input
                       type="text"
                       name="username"
@@ -67,8 +66,8 @@ export default function Login({ onLogin }) {
                     />
                   </div>
 
-                  <div className="form-group">
-                    <label htmlFor="password" className="text-info">Senha:</label><br />
+                  <div className="form-group mb-4">
+                    <label htmlFor="password" className="text-success fw-bold">Senha:</label><br />
                     <input
                       type="password"
                       name="password"
@@ -84,11 +83,11 @@ export default function Login({ onLogin }) {
                     <input
                       type="submit"
                       name="submit"
-                      className="btn btn-info btn-md"
-                      value="Enviar"
+                      className="btn btn-success btn-md px-4"
+                      value="Entrar"
                     />
-                    <a href="/register" className="btn btn-secondary btn-md ms-5">
-                      Registre-se
+                    <a href="/register" className="btn btn-outline-success btn-md">
+                      Criar uma conta
                     </a>
                   </div>
                 </form>

@@ -9,22 +9,22 @@ export default function CompletedAppointments() {
     const fetchAppointments = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:7777/api/agendamentos?status=concluido', {
+        const response = await fetch('http://localhost:7777/api/agendamentos', {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!response.ok) {
-          setMensagem('Erro ao buscar agendamentos concluídos');
+          setMensagem('Ops! Não conseguimos realizar essa ação agora. Tente novamente.');
           return;
         }
-        
 
         const data = await response.json();
-
-        const sortedData = data.sort((a, b) => new Date(b.date) - new Date(a.date));
+        const inactiveStatuses = ['Reciclado ou Descartado', 'Finalizado'];
+        const inactiveData = data.filter(appt => inactiveStatuses.includes(appt.status));
+        const sortedData = inactiveData.sort((a, b) => new Date(b.date) - new Date(a.date));
 
         setAppointments(sortedData);
       } catch (error) {
-        setMensagem('Erro ao conectar com o servidor');
+        setMensagem('Ops! Não conseguimos realizar essa ação agora. Tente novamente.');
       }
     };
 
@@ -34,7 +34,7 @@ export default function CompletedAppointments() {
   return (
     <div 
       style={{ 
-        backgroundImage: "url('/images/salao.jpg')",
+        backgroundImage: "url('/fundodosoftware.jpg')",
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         minHeight: '100vh',
@@ -43,9 +43,9 @@ export default function CompletedAppointments() {
     >
       <div 
         className="card shadow p-4 bg-light"
-        style={{ maxWidth: '600px', width: '100%', opacity: 0.95 }}
+        style={{ maxWidth: '600px', width: '100%', opacity: 0.95, backgroundColor: 'rgba(255, 255, 255, 0.9)' }}
       >
-        <h2 className="text-center text-success mb-4">Agendamentos Concluídos</h2>
+        <h2 className="text-center text-success mb-4">Histórico de Coletas</h2>
 
         {mensagem && (
           <div className="alert alert-danger" role="alert">
@@ -55,7 +55,7 @@ export default function CompletedAppointments() {
 
         {appointments.length === 0 ? (
           <div className="alert alert-info text-center" role="alert">
-            Nenhum agendamento concluído.
+            Você ainda não tem nenhuma coleta por aqui.
           </div>
         ) : (
           <div 
@@ -69,8 +69,12 @@ export default function CompletedAppointments() {
             <ul className="list-group">
               {appointments.map((appt) => (
                 <li key={appt._id} className="list-group-item">
-                  <strong>Serviço:</strong> {appt.service} <br />
-                  <strong>Data:</strong> {new Date(appt.date).toLocaleString()} <br />
+                  <strong>Material:</strong> {appt.service} {appt.quantity > 1 ? `(${appt.quantity}x)` : ''} <br />
+                  <strong>Data:</strong> {new Date(appt.date).toLocaleDateString('pt-BR')} às {appt.time} <br />
+                  <strong>Status final:</strong> <span className="badge bg-secondary">{appt.status}</span> <br />
+                  {appt.destination && (
+                    <><strong>Destino:</strong> {appt.destination}<br /></>
+                  )}
                   {appt.notes && (
                     <>
                       <strong>Observações:</strong> {appt.notes}

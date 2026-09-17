@@ -14,28 +14,31 @@ export default function PendingAppointments() {
   const fetchAppointments = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:7777/api/agendamentos?status=pendente', {
+      // Buscar todos, e depois vamos filtrar os que não estão finalizados
+      const response = await fetch('http://localhost:7777/api/agendamentos', {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!response.ok) {
-        setMensagem('Erro ao buscar agendamentos pendentes');
+        setMensagem('Ops! Não conseguimos realizar essa ação agora. Tente novamente.');
         return;
       }
 
       const data = await response.json();
-
-      const sortedData = data.sort((a, b) => new Date(b.date) - new Date(a.date));
+      
+      const activeStatuses = ['Pendente', 'Aguardando coleta', 'Em transporte', 'Em avaliação'];
+      const activeData = data.filter(appt => activeStatuses.includes(appt.status));
+      const sortedData = activeData.sort((a, b) => new Date(b.date) - new Date(a.date));
 
       setAppointments(sortedData);
     } catch (error) {
-      setMensagem('Erro ao conectar com o servidor');
+      setMensagem('Ops! Não conseguimos realizar essa ação agora. Tente novamente.');
     }
   };
 
   // Função para excluir
   const handleDelete = async (id) => {
-    const confirm = window.confirm('Tem certeza que deseja excluir este agendamento?');
+    const confirm = window.confirm('Tem certeza que deseja cancelar esta coleta?');
     if (!confirm) return;
 
     try {
@@ -50,18 +53,16 @@ export default function PendingAppointments() {
       const resData = await response.json();
 
       if (!response.ok) {
-        setMensagem(resData.message || 'Erro ao excluir agendamento');
+        setMensagem(resData.message || 'Erro ao cancelar coleta');
         return;
       }
 
-      // Atualiza lista após excluir
       setAppointments(appointments.filter((appt) => appt._id !== id));
     } catch (error) {
-      setMensagem('Erro ao excluir agendamento');
+      setMensagem('Erro ao cancelar coleta');
     }
   };
 
-  // Função para editar (irá navegar para uma tela de edição)
   const handleEdit = (id) => {
     navigate(`/agendamentos/editar/${id}`);
   };
@@ -69,7 +70,7 @@ export default function PendingAppointments() {
   return (
     <div
       style={{
-        backgroundImage: "url('/images/salao.jpg')",
+        backgroundImage: "url('/fundodosoftware.jpg')",
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         minHeight: '100vh',
@@ -78,9 +79,9 @@ export default function PendingAppointments() {
     >
       <div
         className="card shadow p-4 bg-light"
-        style={{ maxWidth: '700px', width: '100%', opacity: 0.95 }}
+        style={{ maxWidth: '700px', width: '100%', opacity: 0.95, backgroundColor: 'rgba(255, 255, 255, 0.9)' }}
       >
-        <h2 className="text-center text-warning mb-4">Agendamentos Pendentes</h2>
+        <h2 className="text-center text-warning mb-4">Coletas em Andamento</h2>
 
         {mensagem && (
           <div className="alert alert-danger" role="alert">
@@ -90,12 +91,12 @@ export default function PendingAppointments() {
 
         {appointments.length === 0 ? (
           <div className="alert alert-info text-center" role="alert">
-            Nenhum agendamento pendente.
+            Você ainda não tem nenhuma coleta por aqui.
           </div>
         ) : (
           <div
             style={{
-              maxHeight: '400px',
+              maxHeight: '500px',
               overflowY: 'auto',
               border: '1px solid #dee2e6',
               borderRadius: '0.5rem',
@@ -106,8 +107,13 @@ export default function PendingAppointments() {
                 <li key={appt._id} className="list-group-item">
                   <div className="d-flex justify-content-between align-items-start">
                     <div>
-                      <strong>Serviço:</strong> {appt.service} <br />
-                      <strong>Data:</strong> {new Date(appt.date).toLocaleString()} <br />
+                      <strong>Material:</strong> {appt.service} {appt.quantity > 1 ? `(${appt.quantity}x)` : ''} <br />
+                      {(appt.brand || appt.model) && (
+                        <><strong>Detalhes:</strong> {appt.brand} {appt.model} <br /></>
+                      )}
+                      <strong>Data e Horário:</strong> {appt.date} às {appt.time} <br />
+                      <strong>Endereço:</strong> {appt.address} <br />
+                      <strong>Status:</strong> <span className="badge bg-primary">{appt.status}</span> <br />
                       {appt.notes && (
                         <>
                           <strong>Observações:</strong> {appt.notes}
@@ -116,16 +122,16 @@ export default function PendingAppointments() {
                     </div>
                     <div className="ms-3">
                       <button
-                        className="btn btn-sm btn-primary me-2"
+                        className="btn btn-sm btn-primary me-2 mb-2 w-100"
                         onClick={() => handleEdit(appt._id)}
                       >
                         Editar
                       </button>
                       <button
-                        className="btn btn-sm btn-danger"
+                        className="btn btn-sm btn-danger w-100"
                         onClick={() => handleDelete(appt._id)}
                       >
-                        Excluir
+                        Cancelar
                       </button>
                     </div>
                   </div>

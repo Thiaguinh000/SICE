@@ -4,39 +4,41 @@ export default function Home() {
   return (
     <div 
       style={{ 
-        backgroundImage: "url('/images/salao.jpg')",
+        backgroundImage: "url('/fundodosoftware.jpg')",
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         minHeight: '100vh',
       }}
       className="d-flex justify-content-center align-items-center"
     >
-      <div className="card shadow p-4 bg-light" style={{ maxWidth: '400px', width: '100%', opacity: 0.95 }}>
-        <h1 className="card-title text-center mb-4 text-primary">Bem-vindo(a)!</h1>
+      <div className="card shadow p-4 bg-light" style={{ maxWidth: '400px', width: '100%', opacity: 0.95, backgroundColor: 'rgba(255, 255, 255, 0.9)' }}>
+        <h1 className="card-title text-center mb-2 text-success">SICE</h1>
+        <p className="text-center text-muted mb-4">Sistema Integrado de Coleta de Eletrônicos</p>
+        <p className="text-center mb-4">Tem um eletrônico parado em casa? A gente ajuda você a dar um destino correto para ele.</p>
         <nav>
           <ul className="list-unstyled">
             <li className="mb-3">
               <Link
                 to="/agendar"
-                className="btn btn-primary w-100"
+                className="btn btn-success w-100 py-2"
               >
-                Agendar um serviço
+                Solicitar Coleta
               </Link>
             </li>
             <li className="mb-3">
               <Link
                 to="/agendamentos/pendentes"
-                className="btn btn-warning w-100"
+                className="btn btn-warning w-100 py-2"
               >
-                Ver agendamentos pendentes
+                Minhas Coletas
               </Link>
             </li>
             <li>
               <Link
                 to="/agendamentos/concluidos"
-                className="btn btn-success w-100"
+                className="btn btn-secondary w-100 py-2"
               >
-                Ver agendamentos concluídos
+                Histórico de Coletas
               </Link>
             </li>
           </ul>
