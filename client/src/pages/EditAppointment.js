@@ -37,14 +37,17 @@ export default function EditAppointment() {
     const fetchAppointment = async () => {
       try {
         const token = localStorage.getItem('token');
-        if (token) {
-          const decoded = parseJwt(token);
-          if (decoded && decoded.tipo) {
-            setUserRole(decoded.tipo);
-          }
+        if (!token) {
+          setMensagem('Sessão expirada. Faça login novamente.');
+          return;
+        }
+
+        const decoded = parseJwt(token);
+        if (decoded && decoded.tipo) {
+          setUserRole(decoded.tipo);
         }
         
-        const response = await fetch(`http://localhost:7777/api/agendamentos/${id}`, {
+        const response = await fetch(`${process.env.REACT_APP_API_URL}/api/agendamentos/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -98,7 +101,7 @@ export default function EditAppointment() {
         bodyData.destination = destination;
       }
 
-      const response = await fetch(`http://localhost:7777/api/agendamentos/${id}`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/agendamentos/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

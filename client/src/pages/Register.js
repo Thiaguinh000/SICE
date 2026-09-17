@@ -11,7 +11,7 @@ export default function Register() {
     setMensagem('');
 
     try {
-      const response = await fetch('http://localhost:7777/api/users/register', {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/users/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nome, email, senha }),
@@ -20,7 +20,7 @@ export default function Register() {
       const data = await response.json();
 
       if (!response.ok) {
-        return setMensagem(data.message || 'Erro ao criar conta');
+        return setMensagem(data.mensagem || 'Erro ao criar conta');
       }
 
       setMensagem('Conta criada com sucesso! Você já pode fazer login.');

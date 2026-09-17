@@ -77,9 +77,11 @@ const updateAppointment = async (req, res) => {
 
   try {
     const filtro = { _id: id };
-    if ((req.userTipo === 'usuario' || req.userTipo === 'cliente') && !status && !destination) {
-      // Allow user to edit their own collection if not changing protected fields
+    if (req.userTipo === 'usuario' || req.userTipo === 'cliente') {
       filtro.client = req.userId;
+      if (status !== undefined || destination !== undefined) {
+        return res.status(403).json({ mensagem: 'Você não tem permissão para alterar o status ou o destino da coleta' });
+      }
     }
 
     const appointment = await Appointment.findOne(filtro);

@@ -15,7 +15,7 @@ export default function PendingAppointments() {
     try {
       const token = localStorage.getItem('token');
       // Buscar todos, e depois vamos filtrar os que não estão finalizados
-      const response = await fetch('http://localhost:7777/api/agendamentos', {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/agendamentos`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -43,7 +43,7 @@ export default function PendingAppointments() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:7777/api/agendamentos/${id}`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/agendamentos/${id}`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,

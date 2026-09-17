@@ -9,7 +9,7 @@ export default function CompletedAppointments() {
     const fetchAppointments = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:7777/api/agendamentos', {
+        const response = await fetch(`${process.env.REACT_APP_API_URL}/api/agendamentos`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!response.ok) {
