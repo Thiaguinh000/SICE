@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
 import Home from './pages/Home';
@@ -9,8 +9,47 @@ import PendingAppointments from './pages/PendingAppointments';
 import CompletedAppointments from './pages/CompletedAppointments';
 import EditAppointment from './pages/EditAppointment';
 
+function isValidToken(token) {
+  if (!token) return false;
+
+  try {
+    const base64Url = token.split('.')[1];
+    if (!base64Url) return false;
+
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((char) => `%${('00' + char.charCodeAt(0).toString(16)).slice(-2)}`)
+        .join('')
+    );
+
+    const decoded = JSON.parse(jsonPayload);
+
+    if (!decoded.exp) return true;
+    return decoded.exp * 1000 > Date.now();
+  } catch (error) {
+    return false;
+  }
+}
+
 export default function App() {
-  const [token, setToken] = useState(localStorage.getItem('token'));
+  const [token, setToken] = useState(() => {
+    const storedToken = localStorage.getItem('token');
+    return isValidToken(storedToken) ? storedToken : null;
+  });
+
+  useEffect(() => {
+    const storedToken = localStorage.getItem('token');
+
+    if (!isValidToken(storedToken)) {
+      localStorage.removeItem('token');
+      setToken(null);
+      return;
+    }
+
+    setToken(storedToken);
+  }, []);
 
   return (
     <Router>

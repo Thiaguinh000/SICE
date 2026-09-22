@@ -63,7 +63,7 @@ export default function NewAppointment() {
 
     } catch (err) {
       console.error(err);
-      setMensagem('Ops! Não conseguimos realizar essa ação agora. Tente novamente.');
+      setMensagem('Ops! Não conseguimos realizar essa ação agora. Tente novamente depois.');
     }
   };
 

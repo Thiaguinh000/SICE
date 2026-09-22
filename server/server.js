@@ -7,8 +7,6 @@ const userRoutes = require('./routes/userRoutes');
 const appointmentRoutes = require('./routes/appointmentRoutes');
 const { PORT } = require('./config');
 
-connectDB();
-
 const app = express();
 
 app.use(cors());
@@ -17,4 +15,14 @@ app.use(express.json());
 app.use('/api/users', userRoutes);
 app.use('/api/agendamentos', appointmentRoutes);
 
-app.listen(PORT, () => console.log(`Servidor rodando na porta http://localhost:${PORT}`));
+const startServer = async () => {
+  const connected = await connectDB();
+
+  if (!connected) {
+    console.warn('MongoDB indisponível. O servidor continuará em modo de desenvolvimento, mas as rotas que dependem do banco podem falhar.');
+  }
+
+  app.listen(PORT, () => console.log(`Servidor rodando na porta http://localhost:${PORT}`));
+};
+
+startServer();
