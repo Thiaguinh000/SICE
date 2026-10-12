@@ -26,7 +26,7 @@ export default function PendingAppointments() {
 
       const data = await response.json();
       
-      const activeStatuses = ['Pendente', 'Aguardando coleta', 'Em transporte', 'Em avaliação'];
+      const activeStatuses = ['Pendente', 'Aguardando coleta', 'Em transporte', 'Em avaliação', 'Reciclado ou Descartado'];
       const activeData = data.filter(appt => activeStatuses.includes(appt.status));
       const sortedData = activeData.sort((a, b) => new Date(b.date) - new Date(a.date));
 
@@ -114,6 +114,7 @@ export default function PendingAppointments() {
                       <strong>Data e Horário:</strong> {appt.date} às {appt.time} <br />
                       <strong>Endereço:</strong> {appt.address} <br />
                       <strong>Status:</strong> <span className="badge bg-primary">{appt.status}</span> <br />
+                      {appt.destination && <><strong>Destino:</strong> {appt.destination}<br /></>}
                       {appt.notes && (
                         <>
                           <strong>Observações:</strong> {appt.notes}
@@ -121,18 +122,22 @@ export default function PendingAppointments() {
                       )}
                     </div>
                     <div className="ms-3">
-                      <button
-                        className="btn btn-sm btn-primary me-2 mb-2 w-100"
-                        onClick={() => handleEdit(appt._id)}
-                      >
-                        Editar
-                      </button>
-                      <button
-                        className="btn btn-sm btn-danger w-100"
-                        onClick={() => handleDelete(appt._id)}
-                      >
-                        Cancelar
-                      </button>
+                      {appt.status === 'Pendente' && (
+                        <>
+                          <button
+                            className="btn btn-sm btn-primary me-2 mb-2 w-100"
+                            onClick={() => handleEdit(appt._id)}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            className="btn btn-sm btn-danger w-100"
+                            onClick={() => handleDelete(appt._id)}
+                          >
+                            Cancelar
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </li>

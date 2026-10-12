@@ -16,7 +16,7 @@ const appointmentSchema = new mongoose.Schema({
     enum: ['Pendente', 'Aguardando coleta', 'Em transporte', 'Em avaliação', 'Reciclado ou Descartado', 'Finalizado'],
     default: 'Pendente'
   },
-  destination: String // for admin evaluation
+  destination: { type: String, enum: ['Reciclado', 'Descartado'] }
 }, {
   timestamps: true
 });

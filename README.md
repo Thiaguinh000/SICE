@@ -40,6 +40,7 @@ O sistema permite que usuários realizem:
 ```
 stack-MERN/
 ├── client/                # Frontend (React)
+├── admin/                 # Frontend independente da área administrativa (React)
 ├── server/                # Backend (Node + Express)
 │   ├── controllers/       # Lógica de negócios (funções das rotas)
 │   ├── models/            # Modelos do MongoDB
@@ -80,6 +81,8 @@ MONGO_URI=<sua_string_de_conexao_do_mongodb>
 JWT_SECRET=<sua_chave_secreta_para_assinar_e_validar_os_tokens_de_autenticação>
 PORT=<a_porta_na_qual_rodará_seu_backend>
 ```
+
+Se o Node.js retornar `querySrv ECONNREFUSED` para uma URI `mongodb+srv`, confira a resolução DNS do registro SRV. Caso o DNS padrão usado pelo Node esteja recusando consultas, é possível configurar resolvedores acessíveis adicionando `DNS_SERVERS=8.8.8.8,8.8.4.4` ao `server/.env`. Use resolvedores permitidos pela sua rede; o valor é opcional e só afeta a resolução DNS do processo do servidor.
 
 #### **Como configurar o `MONGO_URI`:**
 
@@ -134,6 +137,20 @@ npm start
 
 O frontend estará disponível em: `http://localhost:3000`.
 
+### Frontend administrativo
+
+1. Na raiz do projeto, copie `admin/.env.example` para `admin/.env`. Ajuste `REACT_APP_API_URL` para a mesma URL e porta configuradas em `server/.env` (`http://localhost:7777` no exemplo).
+2. Para personalizar o botão **Área administrativa** do cliente, copie `client/.env.example` para `client/.env` e ajuste `REACT_APP_ADMIN_URL`, se necessário.
+3. Instale as dependências e inicie o app em outro terminal:
+
+```bash
+cd admin
+npm install
+npm start
+```
+
+O painel ficará disponível em `http://localhost:3001`. Deixe a API (`server`) e o frontend do cliente (`client`) em execução nos outros terminais. Ambos os frontends chamam a mesma API; somente o servidor usa `MONGO_URI` para acessar o banco de dados.
+
 ## Funcionalidades
 
 - **Autenticação:**
@@ -174,3 +191,42 @@ Instituto Federal Catarinense (IFC).
 ## Suporte
 
 Em caso de dúvidas, procure o professor em sala ou pelos canais oficiais do curso (Somente orientandos).
+
+## Área administrativa SICE
+
+A área administrativa é um frontend React independente na pasta `admin`, separado do frontend do cliente (`client`). Os dois frontends usam a mesma API Express da pasta `server`, que consulta as mesmas coleções MongoDB e os mesmos agendamentos. O painel contém indicadores, gerenciamento de coletas, usuários sem dados de senha e relatórios. Contas `admin` e `coletor` podem consultar e avançar solicitações; somente `admin` pode listar usuários.
+
+### Criar o primeiro administrador
+
+1. Configure `MONGO_URI`, `JWT_SECRET` e `PORT` no arquivo `server/.env` (consulte `server/.env.example`).
+2. Acrescente `ADMIN_NAME`, `ADMIN_EMAIL` e `ADMIN_PASSWORD` ao `server/.env`. Use uma senha exclusiva com pelo menos 8 caracteres; não a coloque no código nem no Git.
+3. Com o MongoDB acessível, execute na pasta `server`:
+
+   ```bash
+   npm run create-admin
+   ```
+
+   O script cria uma conta na coleção existente `users`, guarda a senha em hash bcrypt e não altera contas com o mesmo e-mail. Após a criação, remova `ADMIN_PASSWORD` do `.env`.
+4. Configure `admin/.env` copiando `admin/.env.example`. Ajuste `REACT_APP_API_URL` para a URL da API e `REACT_APP_ADMIN_URL` no `client/.env` para `http://localhost:3001`.
+5. Instale as dependências uma vez nas pastas `admin` e `client` (`npm install`). Inicie a API com `npm start` na pasta `server` e cada frontend com `npm start` nas pastas `client` e `admin`. O painel administrativo estará em `http://localhost:3001`; o botão **Área administrativa** na página de login do cliente também abre esse endereço.
+
+Não há criação pública de contas administrativas; o primeiro acesso é provisionado localmente com o script.
+
+### Fluxo de coletas
+
+As solicitações permanecem nos documentos existentes de `appointments`:
+
+`Pendente → Aguardando coleta → Em transporte → Em avaliação → Reciclado ou Descartado → Finalizado`
+
+Durante a avaliação, selecione `Reciclado` ou `Descartado`. O backend valida cada transição e salva o status no mesmo registro que o cliente consulta. Depois de confirmada, a solicitação não pode mais ser editada ou cancelada pelo cliente.
+
+### API administrativa
+
+- `POST /api/admin/login` — login de `admin` e `coletor`;
+- `GET /api/admin/dashboard` — contadores;
+- `GET /api/admin/appointments` e `GET /api/admin/appointments/:id` — coletas;
+- `PATCH /api/admin/appointments/:id/status` — transição de status e destino;
+- `GET /api/admin/users` — usuários e contagem de coletas (somente `admin`);
+- `GET /api/admin/reports` — agregações por material, status e mês.
+
+Todas as rotas, exceto o login, exigem JWT e autorização no backend. Valide as regras com `npm test` na pasta `server` e compile os frontends com `npm run build` nas pastas `client` e `admin`.

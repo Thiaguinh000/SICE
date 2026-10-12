@@ -18,7 +18,7 @@ export default function CompletedAppointments() {
         }
 
         const data = await response.json();
-        const inactiveStatuses = ['Reciclado ou Descartado', 'Finalizado'];
+        const inactiveStatuses = ['Finalizado'];
         const inactiveData = data.filter(appt => inactiveStatuses.includes(appt.status));
         const sortedData = inactiveData.sort((a, b) => new Date(b.date) - new Date(a.date));
 
@@ -72,9 +72,7 @@ export default function CompletedAppointments() {
                   <strong>Material:</strong> {appt.service} {appt.quantity > 1 ? `(${appt.quantity}x)` : ''} <br />
                   <strong>Data:</strong> {new Date(appt.date).toLocaleDateString('pt-BR')} às {appt.time} <br />
                   <strong>Status final:</strong> <span className="badge bg-secondary">{appt.status}</span> <br />
-                  {appt.destination && (
-                    <><strong>Destino:</strong> {appt.destination}<br /></>
-                  )}
+                  {appt.destination && <><strong>Destino:</strong> {appt.destination}<br /></>}
                   {appt.notes && (
                     <>
                       <strong>Observações:</strong> {appt.notes}

@@ -5,4 +5,5 @@ module.exports = {
   JWT_SECRET: process.env.JWT_SECRET,
   MONGO_URI: process.env.MONGO_URI,
   PORT: process.env.PORT,
+  DNS_SERVERS: process.env.DNS_SERVERS,
 };

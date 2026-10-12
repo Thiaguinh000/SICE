@@ -1,8 +1,16 @@
 const Appointment = require('../models/Appointment');
+const mongoose = require('mongoose');
 
 // Criar novo agendamento
 const createAppointment = async (req, res) => {
-  const { date, time, service, brand, model, quantity, condition, address, notes } = req.body;
+  if (!['usuario', 'cliente'].includes(req.userTipo)) {
+    return res.status(403).json({ mensagem: 'Somente clientes podem solicitar uma coleta' });
+  }
+
+  const { date, time, service, brand, model, quantity, condition, address, notes } = req.body || {};
+  if (!date || !time || !service || !address) {
+    return res.status(400).json({ mensagem: 'Data, horário, material e endereço são obrigatórios' });
+  }
 
   try {
     const newAppointment = new Appointment({
@@ -35,6 +43,8 @@ const getAppointments = async (req, res) => {
   const filtro = {};
   if (userTipo === 'usuario' || userTipo === 'cliente') {
     filtro.client = userId;
+  } else if (!['admin', 'coletor'].includes(userTipo)) {
+    return res.status(403).json({ mensagem: 'Você não possui permissão para consultar coletas' });
   }
   if (status) filtro.status = status;
 
@@ -50,6 +60,12 @@ const getAppointments = async (req, res) => {
 // Buscar agendamento por ID
 const getAppointmentById = async (req, res) => {
   const { id } = req.params;
+  if (!mongoose.isValidObjectId(id)) {
+    return res.status(400).json({ mensagem: 'Identificador de coleta inválido' });
+  }
+  if (!['usuario', 'cliente', 'admin', 'coletor'].includes(req.userTipo)) {
+    return res.status(403).json({ mensagem: 'Você não possui permissão para consultar esta coleta' });
+  }
 
   try {
     const filtro = { _id: id };
@@ -73,21 +89,28 @@ const getAppointmentById = async (req, res) => {
 // Editar agendamento
 const updateAppointment = async (req, res) => {
   const { id } = req.params;
-  const { date, time, service, brand, model, quantity, condition, address, notes, status, destination } = req.body;
+  if (!mongoose.isValidObjectId(id)) {
+    return res.status(400).json({ mensagem: 'Identificador de coleta inválido' });
+  }
+  const { date, time, service, brand, model, quantity, condition, address, notes, status, destination } = req.body || {};
+
+  if (!['usuario', 'cliente'].includes(req.userTipo)) {
+    return res.status(403).json({ mensagem: 'Use o fluxo administrativo para atualizar uma coleta' });
+  }
 
   try {
-    const filtro = { _id: id };
-    if (req.userTipo === 'usuario' || req.userTipo === 'cliente') {
-      filtro.client = req.userId;
-      if (status !== undefined || destination !== undefined) {
-        return res.status(403).json({ mensagem: 'Você não tem permissão para alterar o status ou o destino da coleta' });
-      }
+    const filtro = { _id: id, client: req.userId };
+    if (status !== undefined || destination !== undefined) {
+      return res.status(403).json({ mensagem: 'Você não tem permissão para alterar o status ou o destino da coleta' });
     }
 
     const appointment = await Appointment.findOne(filtro);
 
     if (!appointment) {
       return res.status(404).json({ mensagem: 'Coleta não encontrada' });
+    }
+    if ((appointment.status || 'Pendente') !== 'Pendente') {
+      return res.status(403).json({ mensagem: 'A coleta não pode mais ser editada depois de confirmada' });
     }
 
     if (date) appointment.date = date;
@@ -99,9 +122,6 @@ const updateAppointment = async (req, res) => {
     if (condition) appointment.condition = condition;
     if (address) appointment.address = address;
     if (notes) appointment.notes = notes;
-    if (status) appointment.status = status;
-    if (destination) appointment.destination = destination;
-
     await appointment.save();
 
     res.json({ mensagem: 'Coleta atualizada com sucesso', agendamento: appointment });
@@ -114,17 +134,30 @@ const updateAppointment = async (req, res) => {
 // Deletar agendamento
 const deleteAppointment = async (req, res) => {
   const { id } = req.params;
+  if (!mongoose.isValidObjectId(id)) {
+    return res.status(400).json({ mensagem: 'Identificador de coleta inválido' });
+  }
+  if (!['usuario', 'cliente'].includes(req.userTipo)) {
+    return res.status(403).json({ mensagem: 'Você não possui permissão para cancelar esta coleta' });
+  }
 
   try {
-    const filtro = { _id: id };
-    if (req.userTipo === 'usuario' || req.userTipo === 'cliente') {
-      filtro.client = req.userId;
-    }
-
-    const appointment = await Appointment.findOneAndDelete(filtro);
+    const filtro = { _id: id, client: req.userId };
+    const appointment = await Appointment.findOne(filtro);
 
     if (!appointment) {
       return res.status(404).json({ mensagem: 'Coleta não encontrada' });
+    }
+    if ((appointment.status || 'Pendente') !== 'Pendente') {
+      return res.status(403).json({ mensagem: 'A coleta não pode mais ser cancelada depois de confirmada' });
+    }
+
+    const deletedAppointment = await Appointment.findOneAndDelete({
+      ...filtro,
+      $or: [{ status: 'Pendente' }, { status: null }],
+    });
+    if (!deletedAppointment) {
+      return res.status(409).json({ mensagem: 'A coleta foi atualizada. Recarregue os dados e tente novamente.' });
     }
 
     res.json({ mensagem: 'Coleta cancelada com sucesso' });

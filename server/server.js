@@ -2,18 +2,22 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const databaseMiddleware = require('./middleware/databaseMiddleware');
 const connectDB = require('./mongo');
 const userRoutes = require('./routes/userRoutes');
 const appointmentRoutes = require('./routes/appointmentRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 const { PORT } = require('./config');
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use('/api', databaseMiddleware);
 
 app.use('/api/users', userRoutes);
 app.use('/api/agendamentos', appointmentRoutes);
+app.use('/api/admin', adminRoutes);
 
 const startServer = async () => {
   const connected = await connectDB();
