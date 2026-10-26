@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 export default function Login({ onLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [mensagem, setMensagem] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -51,6 +52,7 @@ export default function Login({ onLogin }) {
                   <h2 className="text-center text-success mb-2">SICE</h2>
                   <p className="text-center text-muted mb-4">Acesse sua conta para solicitar ou gerenciar coletas</p>
 
+                  {location.state?.mensagem && <p className="text-success text-center" role="status">{location.state.mensagem}</p>}
                   {mensagem && <p className="text-danger text-center">{mensagem}</p>}
 
                   <div className="form-group mb-3">

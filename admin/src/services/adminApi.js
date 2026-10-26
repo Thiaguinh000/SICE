@@ -55,4 +55,36 @@ export async function adminRequest(path, options = {}) {
   return data;
 }
 
+export async function accountRequest(path, options = {}) {
+  const token = localStorage.getItem(tokenKey);
+  const headers = { ...options.headers };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (options.body !== undefined) headers['Content-Type'] = 'application/json';
+
+  let response;
+  try {
+    response = await fetch(`${apiBase.replace(/\/admin$/, '')}/users${path}`, { ...options, headers });
+  } catch (error) {
+    throw new Error('Não foi possível conectar ao servidor. Verifique se a API está ativa.');
+  }
+
+  let data = {};
+  try {
+    data = await response.json();
+  } catch (error) {
+    if (response.ok) throw new Error('Resposta inválida do servidor.');
+  }
+
+  if (response.status === 401) {
+    localStorage.removeItem(tokenKey);
+    window.dispatchEvent(new Event('sice:admin-session-expired'));
+    throw new Error(data.mensagem || 'Sessão expirada. Faça login novamente.');
+  }
+  if (!response.ok) {
+    throw new Error(data.mensagem || 'Não foi possível concluir a solicitação.');
+  }
+
+  return data;
+}
+
 export { tokenKey };

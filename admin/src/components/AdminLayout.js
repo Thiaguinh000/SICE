@@ -24,6 +24,7 @@ export default function AdminLayout({ token, onLogout }) {
           <NavLink to="/coletas">Coletas</NavLink>
           {isAdmin && <NavLink to="/usuarios">Usuários</NavLink>}
           <NavLink to="/relatorios">Relatórios</NavLink>
+          <NavLink to="/conta">Minha conta</NavLink>
         </nav>
         <main className="admin-content">
           <Outlet />

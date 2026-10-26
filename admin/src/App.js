@@ -9,6 +9,7 @@ import Appointments from './pages/Appointments';
 import AppointmentDetails from './pages/AppointmentDetails';
 import Users from './pages/Users';
 import Reports from './pages/Reports';
+import Account from './pages/Account';
 
 function ProtectedAdmin({ token, onLogout }) {
   const role = getTokenPayload(token)?.tipo;
@@ -57,6 +58,7 @@ export default function App() {
           <Route index element={<Dashboard />} />
           <Route path="coletas" element={<Appointments />} />
           <Route path="coletas/:id" element={<AppointmentDetails />} />
+          <Route path="conta" element={<Account onLogout={handleLogout} />} />
           <Route
             path="usuarios"
             element={getTokenPayload(token)?.tipo === 'admin' ? <Users /> : <Navigate to="/" replace />}

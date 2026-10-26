@@ -39,6 +39,7 @@ export default function AdminLogin({ onLogin }) {
             <h1 className="h3 mb-2">Área administrativa</h1>
           </div>
           <p className="text-center text-muted mb-4">Entre com sua conta de administrador ou coletor.</p>
+          {location.state?.mensagem && <div className="alert alert-success" role="status">{location.state.mensagem}</div>}
           <ErrorMessage>{error}</ErrorMessage>
           <label htmlFor="admin-email" className="form-label">E-mail</label>
           <input

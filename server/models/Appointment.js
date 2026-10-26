@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const appointmentSchema = new mongoose.Schema({
-  client: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true},
+  client: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null},
   date: { type: Date, required: true},
   time: { type: String, required: true},
   service: {type: String, required: true}, // material
@@ -9,7 +9,7 @@ const appointmentSchema = new mongoose.Schema({
   model: String,
   quantity: { type: Number, default: 1 },
   condition: String,
-  address: { type: String, required: true },
+  address: { type: String, default: ''},
   notes: String,
   status: {
     type: String,

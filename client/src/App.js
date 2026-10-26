@@ -8,6 +8,9 @@ import NewAppointment from './pages/NewAppointment';
 import PendingAppointments from './pages/PendingAppointments';
 import CompletedAppointments from './pages/CompletedAppointments';
 import EditAppointment from './pages/EditAppointment';
+import Account from './pages/Account';
+
+const VALID_USER_TYPES = new Set(['usuario', 'cliente', 'admin', 'coletor']);
 
 function isValidToken(token) {
   if (!token) return false;
@@ -26,6 +29,7 @@ function isValidToken(token) {
 
     const decoded = JSON.parse(jsonPayload);
 
+    if (!decoded.userId || !VALID_USER_TYPES.has(decoded.tipo)) return false;
     if (!decoded.exp) return true;
     return decoded.exp * 1000 > Date.now();
   } catch (error) {
@@ -51,12 +55,18 @@ export default function App() {
     setToken(storedToken);
   }, []);
 
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    setToken(null);
+  };
+
   return (
     <Router>
       <Routes>
         <Route path="/" element={token ? <Home /> : <Navigate to="/login" replace />} />
         <Route path="/login" element={<Login onLogin={(token) => { localStorage.setItem('token', token); setToken(token); }} />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/conta" element={token ? <Account onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
         <Route path="/agendar" element={token ? <NewAppointment /> : <Navigate to="/login" replace />} />
         <Route path="/agendamentos/pendentes" element={token ? <PendingAppointments /> : <Navigate to="/login" replace />} />
         <Route path="/agendamentos/concluidos" element={token ? <CompletedAppointments /> : <Navigate to="/login" replace />} />

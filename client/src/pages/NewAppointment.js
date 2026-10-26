@@ -44,7 +44,7 @@ export default function NewAppointment() {
       const resData = await response.json();
 
       if (!response.ok) {
-        return setMensagem(resData.message || 'Ops! Não conseguimos realizar essa ação agora. Tente novamente.');
+        return setMensagem(resData.mensagem || resData.message || 'Ops! Não conseguimos realizar essa ação agora. Tente novamente.');
       }
 
       setMensagem('Coleta solicitada! Vamos cuidar do restante.');

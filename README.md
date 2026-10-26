@@ -121,7 +121,7 @@ O backend rodará em: `http://localhost:${PORT}`
 
 ```bash
 cd client
-```
+```++
 
 2. Instale as dependências:
 

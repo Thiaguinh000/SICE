@@ -41,6 +41,11 @@ export default function Home() {
                 Histórico de Coletas
               </Link>
             </li>
+            <li className="mt-3">
+              <Link to="/conta" className="btn btn-outline-success w-100 py-2">
+                Minha conta
+              </Link>
+            </li>
           </ul>
         </nav>
       </div>

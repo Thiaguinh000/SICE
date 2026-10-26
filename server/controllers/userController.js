@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const Appointment = require('../models/Appointment');
 const User = require('../models/User');
 const { JWT_SECRET } = require('../config');
 
@@ -27,6 +28,10 @@ const loginUser = async (req, res) => {
 
     if (!senhaValida) {
       return res.status(400).json({ mensagem: 'Senha inválida' });
+    }
+
+    if (!['usuario', 'cliente'].includes(usuario.tipo)) {
+      return res.status(403).json({ mensagem: 'Esta conta deve ser acessada pela área administrativa' });
     }
 
     const token = jwt.sign(
@@ -115,9 +120,101 @@ const registerUser = async (req, res) => {
   }
 };
 
+const getUserProfile = async (req, res) => {
+  try {
+    const usuario = await User.findById(req.userId).select('-senha').lean();
+
+    if (!usuario) {
+      return res.status(404).json({ mensagem: 'Usuário não encontrado' });
+    }
+
+    res.json(usuario);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Não foi possível carregar o perfil' });
+  }
+};
+
+const updateUserProfile = async (req, res) => {
+  const { nome, email, senhaAtual, novaSenha } = req.body || {};
+
+  if (typeof nome !== 'string' || !nome.trim() || typeof email !== 'string' || !email.trim()) {
+    return res.status(400).json({ mensagem: 'Nome e e-mail são obrigatórios' });
+  }
+
+  const changingPassword = senhaAtual !== undefined || novaSenha !== undefined;
+  if (changingPassword && (typeof senhaAtual !== 'string' || !senhaAtual || typeof novaSenha !== 'string' || !novaSenha)) {
+    return res.status(400).json({ mensagem: 'Informe a senha atual e a nova senha' });
+  }
+
+  try {
+    const usuario = await User.findById(req.userId);
+    if (!usuario) return res.status(404).json({ mensagem: 'Usuário não encontrado' });
+
+    if (changingPassword && !(await bcrypt.compare(senhaAtual, usuario.senha))) {
+      return res.status(400).json({ mensagem: 'Senha atual inválida' });
+    }
+
+    usuario.nome = nome.trim();
+    usuario.email = email.trim().toLowerCase();
+    if (changingPassword) usuario.senha = await bcrypt.hash(novaSenha, 10);
+
+    await usuario.save();
+    res.json({
+      mensagem: 'Dados atualizados com sucesso',
+      usuario: {
+        _id: usuario._id,
+        nome: usuario.nome,
+        email: usuario.email,
+        tipo: usuario.tipo,
+      },
+    });
+  } catch (erro) {
+    if (erro.code === 11000) {
+      return res.status(409).json({ mensagem: 'Este e-mail já está cadastrado' });
+    }
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Não foi possível atualizar os dados da conta' });
+  }
+};
+
+const deleteUserAccount = async (req, res) => {
+  const { senha } = req.body || {};
+  if (typeof senha !== 'string' || !senha) {
+    return res.status(400).json({ mensagem: 'Informe sua senha para excluir a conta' });
+  }
+
+  try {
+    const usuario = await User.findById(req.userId);
+    if (!usuario) return res.status(404).json({ mensagem: 'Usuário não encontrado' });
+    if (!(await bcrypt.compare(senha, usuario.senha))) {
+      return res.status(400).json({ mensagem: 'Senha inválida' });
+    }
+
+    await Appointment.updateMany(
+      { client: usuario._id },
+      {
+        $set: {
+          client: null,
+          address: '',
+        },
+        $unset: { notes: '' },
+      }
+    );
+    await User.deleteOne({ _id: usuario._id });
+
+    res.json({ mensagem: 'Conta excluída. O histórico de coletas foi mantido sem dados pessoais.' });
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Não foi possível excluir a conta' });
+  }
+};
 
 module.exports = {
   loginUser,
   loginAdminUser,
   registerUser,
+  getUserProfile,
+  updateUserProfile,
+  deleteUserAccount,
 };
