@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { adminRequest, tokenKey } from '../services/adminApi';
+import { adminRequest } from '../services/adminApi';
 import { ErrorMessage } from '../components/Feedback';
 
 export default function AdminLogin({ onLogin }) {
@@ -20,8 +20,7 @@ export default function AdminLogin({ onLogin }) {
         method: 'POST',
         body: JSON.stringify({ email, senha }),
       });
-      localStorage.setItem(tokenKey, result.token);
-      onLogin(result.token);
+      onLogin(result.usuario);
       navigate(location.state?.from || '/', { replace: true });
     } catch (requestError) {
       setError(requestError.message);

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { apiRequest } from '../services/api';
 
 export default function PendingAppointments() {
   const [appointments, setAppointments] = useState([]);
@@ -13,26 +14,16 @@ export default function PendingAppointments() {
 
   const fetchAppointments = async () => {
     try {
-      const token = localStorage.getItem('token');
       // Buscar todos, e depois vamos filtrar os que não estão finalizados
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/agendamentos`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!response.ok) {
-        setMensagem('Ops! Não conseguimos realizar essa ação agora. Tente novamente.');
-        return;
-      }
-
-      const data = await response.json();
+      const data = await apiRequest('/api/agendamentos');
       
       const activeStatuses = ['Pendente', 'Aguardando coleta', 'Em transporte', 'Em avaliação', 'Reciclado ou Descartado'];
-      const activeData = data.filter(appt => activeStatuses.includes(appt.status));
+      const activeData = data.filter(appt => activeStatuses.includes(appt.status || 'Pendente'));
       const sortedData = activeData.sort((a, b) => new Date(b.date) - new Date(a.date));
 
       setAppointments(sortedData);
     } catch (error) {
-      setMensagem('Ops! Não conseguimos realizar essa ação agora. Tente novamente.');
+      setMensagem(error.message || 'Ops! Não conseguimos realizar essa ação agora. Tente novamente.');
     }
   };
 
@@ -42,24 +33,12 @@ export default function PendingAppointments() {
     if (!confirm) return;
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/agendamentos/${id}`, {
+      await apiRequest(`/api/agendamentos/${id}`, {
         method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
       });
-
-      const resData = await response.json();
-
-      if (!response.ok) {
-        setMensagem(resData.message || 'Erro ao cancelar coleta');
-        return;
-      }
-
       setAppointments(appointments.filter((appt) => appt._id !== id));
     } catch (error) {
-      setMensagem('Erro ao cancelar coleta');
+      setMensagem(error.message || 'Erro ao cancelar coleta');
     }
   };
 
@@ -111,7 +90,7 @@ export default function PendingAppointments() {
                       {(appt.brand || appt.model) && (
                         <><strong>Detalhes:</strong> {appt.brand} {appt.model} <br /></>
                       )}
-                      <strong>Data e Horário:</strong> {appt.date} às {appt.time} <br />
+                      <strong>Data e Horário:</strong> {new Date(appt.date).toLocaleDateString('pt-BR')} às {appt.time} <br />
                       <strong>Endereço:</strong> {appt.address} <br />
                       <strong>Status:</strong> <span className="badge bg-primary">{appt.status}</span> <br />
                       {appt.destination && <><strong>Destino:</strong> {appt.destination}<br /></>}
@@ -119,6 +98,16 @@ export default function PendingAppointments() {
                         <>
                           <strong>Observações:</strong> {appt.notes}
                         </>
+                      )}
+                      {appt.statusHistory?.length > 0 && (
+                        <details className="mt-2">
+                          <summary>Ver histórico de atualizações</summary>
+                          <ol className="mt-2 mb-0">
+                            {appt.statusHistory.map((event) => (
+                              <li key={event._id}>{event.status} — {new Date(event.changedAt).toLocaleString('pt-BR')}</li>
+                            ))}
+                          </ol>
+                        </details>
                       )}
                     </div>
                     <div className="ms-3">

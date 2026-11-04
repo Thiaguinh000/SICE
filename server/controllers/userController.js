@@ -1,8 +1,22 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const Appointment = require('../models/Appointment');
+const Notification = require('../models/Notification');
 const User = require('../models/User');
 const { JWT_SECRET } = require('../config');
+
+const TOKEN_LIFETIME = process.env.JWT_EXPIRES_IN || '1h';
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function setSessionCookie(res, token, cookieName = 'sice_client_session') {
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+  res.setHeader('Set-Cookie', `${cookieName}=${token}; HttpOnly; SameSite=Lax; Path=/api${secure}`);
+}
+
+function clearSessionCookie(res, cookieName = 'sice_client_session') {
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+  res.setHeader('Set-Cookie', `${cookieName}=; HttpOnly; SameSite=Lax; Path=/api; Max-Age=0${secure}`);
+}
 
 // Realizar login
 const loginUser = async (req, res) => {
@@ -37,10 +51,14 @@ const loginUser = async (req, res) => {
     const token = jwt.sign(
       { userId: usuario._id, tipo: usuario.tipo },
       JWT_SECRET,
-      { expiresIn: '2h' }
+      { expiresIn: TOKEN_LIFETIME }
     );
 
-    res.json({ mensagem: 'Login bem-sucedido', token });
+    setSessionCookie(res, token, 'sice_client_session');
+    res.json({
+      mensagem: 'Login bem-sucedido',
+      usuario: { _id: usuario._id, nome: usuario.nome, email: usuario.email, tipo: usuario.tipo },
+    });
   } catch (erro) {
     console.error(erro);
     res.status(500).json({ mensagem: 'Erro no servidor' });
@@ -73,10 +91,14 @@ const loginAdminUser = async (req, res) => {
     const token = jwt.sign(
       { userId: usuario._id, tipo: usuario.tipo },
       JWT_SECRET,
-      { expiresIn: '2h' }
+      { expiresIn: TOKEN_LIFETIME }
     );
 
-    res.json({ mensagem: 'Login bem-sucedido', token });
+    setSessionCookie(res, token, 'sice_admin_session');
+    res.json({
+      mensagem: 'Login bem-sucedido',
+      usuario: { _id: usuario._id, nome: usuario.nome, email: usuario.email, tipo: usuario.tipo },
+    });
   } catch (erro) {
     console.error(erro);
     res.status(500).json({ mensagem: 'Erro no servidor' });
@@ -88,8 +110,10 @@ const registerUser = async (req, res) => {
   const { nome, email, senha } = req.body || {};
 
   try {
-    if (typeof nome !== 'string' || !nome.trim() || typeof email !== 'string' || !email.trim() || typeof senha !== 'string' || !senha) {
-      return res.status(400).json({ mensagem: 'Nome, e-mail e senha são obrigatórios' });
+    if (typeof nome !== 'string' || !nome.trim() || nome.trim().length > 120
+      || typeof email !== 'string' || !EMAIL_PATTERN.test(email.trim())
+      || typeof senha !== 'string' || senha.length < 8 || senha.length > 128) {
+      return res.status(400).json({ mensagem: 'Informe nome, e-mail válido e senha entre 8 e 128 caracteres' });
     }
 
     const emailNormalizado = email.trim().toLowerCase();
@@ -138,13 +162,15 @@ const getUserProfile = async (req, res) => {
 const updateUserProfile = async (req, res) => {
   const { nome, email, senhaAtual, novaSenha } = req.body || {};
 
-  if (typeof nome !== 'string' || !nome.trim() || typeof email !== 'string' || !email.trim()) {
-    return res.status(400).json({ mensagem: 'Nome e e-mail são obrigatórios' });
+  if (typeof nome !== 'string' || !nome.trim() || nome.trim().length > 120
+    || typeof email !== 'string' || !EMAIL_PATTERN.test(email.trim())) {
+    return res.status(400).json({ mensagem: 'Informe um nome válido e um e-mail válido' });
   }
 
   const changingPassword = senhaAtual !== undefined || novaSenha !== undefined;
-  if (changingPassword && (typeof senhaAtual !== 'string' || !senhaAtual || typeof novaSenha !== 'string' || !novaSenha)) {
-    return res.status(400).json({ mensagem: 'Informe a senha atual e a nova senha' });
+  if (changingPassword && (typeof senhaAtual !== 'string' || !senhaAtual
+    || typeof novaSenha !== 'string' || novaSenha.length < 8 || novaSenha.length > 128)) {
+    return res.status(400).json({ mensagem: 'Informe a senha atual e uma nova senha entre 8 e 128 caracteres' });
   }
 
   try {
@@ -190,6 +216,9 @@ const deleteUserAccount = async (req, res) => {
     if (!(await bcrypt.compare(senha, usuario.senha))) {
       return res.status(400).json({ mensagem: 'Senha inválida' });
     }
+    if (usuario.tipo === 'admin' && await User.countDocuments({ tipo: 'admin' }) === 1) {
+      return res.status(409).json({ mensagem: 'A única conta administradora não pode ser excluída' });
+    }
 
     await Appointment.updateMany(
       { client: usuario._id },
@@ -201,13 +230,31 @@ const deleteUserAccount = async (req, res) => {
         $unset: { notes: '' },
       }
     );
+    await Appointment.updateMany(
+      { 'statusHistory.changedBy': usuario._id },
+      { $set: { 'statusHistory.$[event].changedBy': null } },
+      { arrayFilters: [{ 'event.changedBy': usuario._id }] }
+    );
+    await Appointment.updateMany(
+      { assignedCollector: usuario._id },
+      { $set: { assignedCollector: null } }
+    );
+    await Notification.deleteMany({ user: usuario._id });
     await User.deleteOne({ _id: usuario._id });
 
+    clearSessionCookie(res, usuario.tipo === 'admin' || usuario.tipo === 'coletor'
+      ? 'sice_admin_session'
+      : 'sice_client_session');
     res.json({ mensagem: 'Conta excluída. O histórico de coletas foi mantido sem dados pessoais.' });
   } catch (erro) {
     console.error(erro);
     res.status(500).json({ mensagem: 'Não foi possível excluir a conta' });
   }
+};
+
+const logoutUser = (req, res) => {
+  clearSessionCookie(res, req.baseUrl === '/api/admin' ? 'sice_admin_session' : 'sice_client_session');
+  res.json({ mensagem: 'Sessão encerrada' });
 };
 
 module.exports = {
@@ -217,4 +264,5 @@ module.exports = {
   getUserProfile,
   updateUserProfile,
   deleteUserAccount,
+  logoutUser,
 };

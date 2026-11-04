@@ -3,13 +3,29 @@ const jwt = require('jsonwebtoken');
 const { JWT_SECRET } = require('../config');
 const User = require('../models/User');
 
-const authMiddleware = async (req, res, next) => {
+function getSessionToken(req) {
+  const cookieHeader = req.headers.cookie || '';
+  const cookieName = req.baseUrl === '/api/admin' ? 'sice_admin_session' : 'sice_client_session';
+  const sessionCookie = cookieHeader
+    .split(';')
+    .map((cookie) => cookie.trim())
+    .find((cookie) => cookie.startsWith(`${cookieName}=`));
+  if (sessionCookie) return sessionCookie.slice(`${cookieName}=`.length);
+
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ mensagem: 'Token não fornecido' });
+  if (authHeader?.startsWith('Bearer ')) return authHeader.slice('Bearer '.length);
+  return null;
+}
+
+const authMiddleware = async (req, res, next) => {
+  if (!JWT_SECRET) {
+    return res.status(503).json({ mensagem: 'Autenticação indisponível no momento' });
   }
 
-  const token = authHeader.split(' ')[1];
+  const token = getSessionToken(req);
+  if (!token) {
+    return res.status(401).json({ mensagem: 'Token não fornecido' });
+  }
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
@@ -19,6 +35,7 @@ const authMiddleware = async (req, res, next) => {
     }
     req.userId = usuario._id;
     req.userTipo = usuario.tipo;
+    res.set('Cache-Control', 'no-store');
     return next();
   } catch (error) {
     if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError' || error.name === 'CastError') {

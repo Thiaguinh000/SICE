@@ -70,7 +70,7 @@ export default function Account({ onLogout }) {
         method: 'DELETE',
         body: JSON.stringify({ senha: senhaExclusao }),
       });
-      onLogout();
+      await onLogout(true);
       navigate('/login', { replace: true, state: { mensagem: result.mensagem } });
     } catch (requestError) {
       setError(requestError.message);
@@ -79,9 +79,13 @@ export default function Account({ onLogout }) {
     }
   };
 
-  const handleSwitchAccount = () => {
-    onLogout();
-    navigate('/login', { replace: true });
+  const handleSwitchAccount = async () => {
+    try {
+      await onLogout();
+      navigate('/login', { replace: true });
+    } catch (requestError) {
+      setError(requestError.message || 'Não foi possível encerrar a sessão.');
+    }
   };
 
   if (!profile && !error) return <Loading label="Carregando sua conta..." />;
@@ -104,15 +108,15 @@ export default function Account({ onLogout }) {
           <form onSubmit={handleUpdate}>
             <h2 className="h5">Informações pessoais</h2>
             <label className="form-label" htmlFor="admin-account-name">Nome</label>
-            <input id="admin-account-name" className="form-control mb-3" value={nome} onChange={(event) => setNome(event.target.value)} required />
+            <input id="admin-account-name" className="form-control mb-3" maxLength={120} value={nome} onChange={(event) => setNome(event.target.value)} required />
             <label className="form-label" htmlFor="admin-account-email">E-mail</label>
-            <input id="admin-account-email" className="form-control mb-4" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+            <input id="admin-account-email" className="form-control mb-4" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
 
             <h2 className="h5">Alterar senha <small className="text-muted fw-normal">(opcional)</small></h2>
             <label className="form-label" htmlFor="admin-current-password">Senha atual</label>
             <input id="admin-current-password" className="form-control mb-3" type="password" autoComplete="current-password" value={senhaAtual} onChange={(event) => setSenhaAtual(event.target.value)} />
             <label className="form-label" htmlFor="admin-new-password">Nova senha</label>
-            <input id="admin-new-password" className="form-control mb-4" type="password" autoComplete="new-password" value={novaSenha} onChange={(event) => setNovaSenha(event.target.value)} />
+            <input id="admin-new-password" className="form-control mb-4" type="password" minLength={8} maxLength={128} autoComplete="new-password" value={novaSenha} onChange={(event) => setNovaSenha(event.target.value)} />
             <button className="btn btn-success" type="submit" disabled={saving}>
               {saving ? 'Salvando...' : 'Salvar alterações'}
             </button>

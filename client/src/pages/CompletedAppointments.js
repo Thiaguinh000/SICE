@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { apiRequest } from '../services/api';
 
 export default function CompletedAppointments() {
   const [appointments, setAppointments] = useState([]);
@@ -8,23 +9,14 @@ export default function CompletedAppointments() {
   useEffect(() => {
     const fetchAppointments = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`${process.env.REACT_APP_API_URL}/api/agendamentos`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!response.ok) {
-          setMensagem('Ops! Não conseguimos realizar essa ação agora. Tente novamente.');
-          return;
-        }
-
-        const data = await response.json();
+        const data = await apiRequest('/api/agendamentos');
         const inactiveStatuses = ['Finalizado'];
         const inactiveData = data.filter(appt => inactiveStatuses.includes(appt.status));
         const sortedData = inactiveData.sort((a, b) => new Date(b.date) - new Date(a.date));
 
         setAppointments(sortedData);
       } catch (error) {
-        setMensagem('Ops! Não conseguimos realizar essa ação agora. Tente novamente.');
+        setMensagem(error.message || 'Ops! Não conseguimos realizar essa ação agora. Tente novamente.');
       }
     };
 
@@ -73,10 +65,21 @@ export default function CompletedAppointments() {
                   <strong>Data:</strong> {new Date(appt.date).toLocaleDateString('pt-BR')} às {appt.time} <br />
                   <strong>Status final:</strong> <span className="badge bg-secondary">{appt.status}</span> <br />
                   {appt.destination && <><strong>Destino:</strong> {appt.destination}<br /></>}
+                  {appt.weightKg && <><strong>Peso medido:</strong> {appt.weightKg} kg<br /></>}
                   {appt.notes && (
                     <>
                       <strong>Observações:</strong> {appt.notes}
                     </>
+                  )}
+                  {appt.statusHistory?.length > 0 && (
+                    <details className="mt-2">
+                      <summary>Ver histórico de atualizações</summary>
+                      <ol className="mt-2 mb-0">
+                        {appt.statusHistory.map((event) => (
+                          <li key={event._id}>{event.status} — {new Date(event.changedAt).toLocaleString('pt-BR')}</li>
+                        ))}
+                      </ol>
+                    </details>
                   )}
                 </li>
               ))}

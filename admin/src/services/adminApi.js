@@ -1,37 +1,12 @@
 const apiBase = `${(process.env.REACT_APP_API_URL || 'http://localhost:7777').replace(/\/$/, '')}/api/admin`;
-const tokenKey = 'adminToken';
-
-export function getTokenPayload(token = localStorage.getItem(tokenKey)) {
-  try {
-    const payload = token?.split('.')[1];
-    if (!payload) return null;
-
-    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
-    return JSON.parse(decodeURIComponent(
-      atob(base64)
-        .split('')
-        .map((character) => `%${(`00${character.charCodeAt(0).toString(16)}`).slice(-2)}`)
-        .join('')
-    ));
-  } catch (error) {
-    return null;
-  }
-}
-
-export function isValidToken(token) {
-  const payload = getTokenPayload(token);
-  return Boolean(payload && (!payload.exp || payload.exp * 1000 > Date.now()));
-}
 
 export async function adminRequest(path, options = {}) {
-  const token = localStorage.getItem(tokenKey);
   const headers = { ...options.headers };
-  if (token) headers.Authorization = `Bearer ${token}`;
   if (options.body !== undefined) headers['Content-Type'] = 'application/json';
 
   let response;
   try {
-    response = await fetch(`${apiBase}${path}`, { ...options, headers });
+    response = await fetch(`${apiBase}${path}`, { ...options, headers, credentials: 'include' });
   } catch (error) {
     throw new Error('Não foi possível conectar ao servidor. Verifique se a API está ativa.');
   }
@@ -44,7 +19,6 @@ export async function adminRequest(path, options = {}) {
   }
 
   if (response.status === 401) {
-    localStorage.removeItem(tokenKey);
     window.dispatchEvent(new Event('sice:admin-session-expired'));
     throw new Error(data.mensagem || 'Sessão expirada. Faça login novamente.');
   }
@@ -56,14 +30,16 @@ export async function adminRequest(path, options = {}) {
 }
 
 export async function accountRequest(path, options = {}) {
-  const token = localStorage.getItem(tokenKey);
   const headers = { ...options.headers };
-  if (token) headers.Authorization = `Bearer ${token}`;
   if (options.body !== undefined) headers['Content-Type'] = 'application/json';
 
   let response;
   try {
-    response = await fetch(`${apiBase.replace(/\/admin$/, '')}/users${path}`, { ...options, headers });
+    response = await fetch(`${apiBase}/account${path}`, {
+      ...options,
+      headers,
+      credentials: 'include',
+    });
   } catch (error) {
     throw new Error('Não foi possível conectar ao servidor. Verifique se a API está ativa.');
   }
@@ -76,7 +52,6 @@ export async function accountRequest(path, options = {}) {
   }
 
   if (response.status === 401) {
-    localStorage.removeItem(tokenKey);
     window.dispatchEvent(new Event('sice:admin-session-expired'));
     throw new Error(data.mensagem || 'Sessão expirada. Faça login novamente.');
   }
@@ -86,5 +61,3 @@ export async function accountRequest(path, options = {}) {
 
   return data;
 }
-
-export { tokenKey };

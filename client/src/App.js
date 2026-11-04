@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { apiRequest } from './services/api';
 
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -9,68 +10,57 @@ import PendingAppointments from './pages/PendingAppointments';
 import CompletedAppointments from './pages/CompletedAppointments';
 import EditAppointment from './pages/EditAppointment';
 import Account from './pages/Account';
+import Notifications from './pages/Notifications';
+import Privacy from './pages/Privacy';
 
-const VALID_USER_TYPES = new Set(['usuario', 'cliente', 'admin', 'coletor']);
-
-function isValidToken(token) {
-  if (!token) return false;
-
-  try {
-    const base64Url = token.split('.')[1];
-    if (!base64Url) return false;
-
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split('')
-        .map((char) => `%${('00' + char.charCodeAt(0).toString(16)).slice(-2)}`)
-        .join('')
-    );
-
-    const decoded = JSON.parse(jsonPayload);
-
-    if (!decoded.userId || !VALID_USER_TYPES.has(decoded.tipo)) return false;
-    if (!decoded.exp) return true;
-    return decoded.exp * 1000 > Date.now();
-  } catch (error) {
-    return false;
-  }
+function ProtectedClient({ user, checkingSession, children }) {
+  if (checkingSession) return <main className="eco-layout"><p role="status">Verificando sessão...</p></main>;
+  return user ? children : <Navigate to="/login" replace />;
 }
 
 export default function App() {
-  const [token, setToken] = useState(() => {
-    const storedToken = localStorage.getItem('token');
-    return isValidToken(storedToken) ? storedToken : null;
-  });
+  const [user, setUser] = useState(null);
+  const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
-    const storedToken = localStorage.getItem('token');
-
-    if (!isValidToken(storedToken)) {
+    try {
       localStorage.removeItem('token');
-      setToken(null);
-      return;
+    } catch (error) {
+      console.warn('Não foi possível remover uma credencial antiga do navegador.', error);
     }
-
-    setToken(storedToken);
+    apiRequest('/api/users/profile')
+      .then(setUser)
+      .catch(() => setUser(null))
+      .finally(() => setCheckingSession(false));
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    setToken(null);
+  useEffect(() => {
+    const handleExpiredSession = () => {
+      setUser(null);
+      setCheckingSession(false);
+    };
+    window.addEventListener('sice:client-session-expired', handleExpiredSession);
+    return () => window.removeEventListener('sice:client-session-expired', handleExpiredSession);
+  }, []);
+
+  const handleLogout = async (sessionAlreadyCleared = false) => {
+    if (!sessionAlreadyCleared) await apiRequest('/api/users/logout', { method: 'POST' });
+    setUser(null);
   };
 
   return (
     <Router>
       <Routes>
-        <Route path="/" element={token ? <Home /> : <Navigate to="/login" replace />} />
-        <Route path="/login" element={<Login onLogin={(token) => { localStorage.setItem('token', token); setToken(token); }} />} />
+        <Route path="/" element={<ProtectedClient user={user} checkingSession={checkingSession}><Home /></ProtectedClient>} />
+        <Route path="/login" element={checkingSession ? <main role="status">Verificando sessão...</main> : user ? <Navigate to="/" replace /> : <Login onLogin={setUser} />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/conta" element={token ? <Account onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
-        <Route path="/agendar" element={token ? <NewAppointment /> : <Navigate to="/login" replace />} />
-        <Route path="/agendamentos/pendentes" element={token ? <PendingAppointments /> : <Navigate to="/login" replace />} />
-        <Route path="/agendamentos/concluidos" element={token ? <CompletedAppointments /> : <Navigate to="/login" replace />} />
-        <Route path="/agendamentos/editar/:id" element={token ? <EditAppointment /> : <Navigate to="/login" replace />} />
+        <Route path="/privacidade" element={<Privacy />} />
+        <Route path="/conta" element={<ProtectedClient user={user} checkingSession={checkingSession}><Account onLogout={handleLogout} /></ProtectedClient>} />
+        <Route path="/notificacoes" element={<ProtectedClient user={user} checkingSession={checkingSession}><Notifications /></ProtectedClient>} />
+        <Route path="/agendar" element={<ProtectedClient user={user} checkingSession={checkingSession}><NewAppointment /></ProtectedClient>} />
+        <Route path="/agendamentos/pendentes" element={<ProtectedClient user={user} checkingSession={checkingSession}><PendingAppointments /></ProtectedClient>} />
+        <Route path="/agendamentos/concluidos" element={<ProtectedClient user={user} checkingSession={checkingSession}><CompletedAppointments /></ProtectedClient>} />
+        <Route path="/agendamentos/editar/:id" element={<ProtectedClient user={user} checkingSession={checkingSession}><EditAppointment /></ProtectedClient>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>

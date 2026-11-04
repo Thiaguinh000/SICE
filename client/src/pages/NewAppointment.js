@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { apiRequest, getMinimumTime, getTodayDate } from '../services/api';
 
 export default function NewAppointment() {
   const [servico, setServico] = useState('');
@@ -20,14 +21,8 @@ export default function NewAppointment() {
     setMensagem('');
 
     try {
-      const token = localStorage.getItem('token');
-
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/agendamentos`, {
+      await apiRequest('/api/agendamentos', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
         body: JSON.stringify({
           service: servico,
           brand: marca,
@@ -40,12 +35,6 @@ export default function NewAppointment() {
           notes: observacoes,
         }),
       });
-
-      const resData = await response.json();
-
-      if (!response.ok) {
-        return setMensagem(resData.mensagem || resData.message || 'Ops! Não conseguimos realizar essa ação agora. Tente novamente.');
-      }
 
       setMensagem('Coleta solicitada! Vamos cuidar do restante.');
 
@@ -62,8 +51,7 @@ export default function NewAppointment() {
       setTimeout(() => navigate('/agendamentos/pendentes'), 2000);
 
     } catch (err) {
-      console.error(err);
-      setMensagem('Ops! Não conseguimos realizar essa ação agora. Tente novamente depois.');
+      setMensagem(err.message || 'Ops! Não conseguimos realizar essa ação agora. Tente novamente depois.');
     }
   };
 
@@ -143,10 +131,10 @@ export default function NewAppointment() {
           <h5 className="text-secondary mt-3">Quando podemos passar aí?</h5>
           <div className="row mb-4">
             <div className="col">
-              <input type="date" className="form-control" value={data} onChange={(e) => setData(e.target.value)} required />
+              <input type="date" className="form-control" min={getTodayDate()} value={data} onChange={(e) => setData(e.target.value)} required />
             </div>
             <div className="col">
-              <input type="time" className="form-control" value={hora} onChange={(e) => setHora(e.target.value)} required />
+              <input type="time" className="form-control" min={getMinimumTime(data)} value={hora} onChange={(e) => setHora(e.target.value)} required />
             </div>
           </div>
 

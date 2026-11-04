@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { apiRequest } from '../services/api';
 
 export default function Login({ onLogin }) {
   const [username, setUsername] = useState('');
@@ -13,24 +14,16 @@ export default function Login({ onLogin }) {
     setMensagem('');
 
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/users/login`, {
+      const data = await apiRequest('/api/users/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        auth: false,
         body: JSON.stringify({ email: username, senha: password }),
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        setMensagem(data.mensagem || 'Erro no login');
-        return;
-      }
-
-      localStorage.setItem('token', data.token);
-      onLogin(data.token);
+      onLogin(data.usuario);
       navigate('/');
     } catch (error) {
-      setMensagem('Erro na conexão com o servidor');
+      setMensagem(error.message || 'Erro na conexão com o servidor');
     }
   };
 
@@ -58,10 +51,11 @@ export default function Login({ onLogin }) {
                   <div className="form-group mb-3">
                     <label htmlFor="username" className="text-success fw-bold">E-mail:</label><br />
                     <input
-                      type="text"
+                      type="email"
                       name="username"
                       id="username"
                       className="form-control"
+                      autoComplete="username"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       required
@@ -88,10 +82,11 @@ export default function Login({ onLogin }) {
                       className="btn btn-success btn-md px-4"
                       value="Entrar"
                     />
-                    <a href="/register" className="btn btn-outline-success btn-md">
+                    <Link to="/register" className="btn btn-outline-success btn-md">
                       Criar uma conta
-                    </a>
+                    </Link>
                   </div>
+                  <p className="small text-center mt-3 mb-0"><Link to="/privacidade">Política de privacidade</Link></p>
                 </form>
               </div>
             </div>

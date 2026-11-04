@@ -1,7 +1,20 @@
 const mongoose = require('mongoose');
 
+const statusHistorySchema = new mongoose.Schema({
+  status: {
+    type: String,
+    enum: ['Pendente', 'Aguardando coleta', 'Em transporte', 'Em avaliação', 'Reciclado ou Descartado', 'Finalizado'],
+    required: true,
+  },
+  changedAt: { type: Date, default: Date.now, required: true },
+  changedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  destination: { type: String, enum: ['Reciclado', 'Descartado'] },
+  weightKg: { type: Number, min: 0 },
+});
+
 const appointmentSchema = new mongoose.Schema({
   client: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null},
+  assignedCollector: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   date: { type: Date, required: true},
   time: { type: String, required: true},
   service: {type: String, required: true}, // material
@@ -16,7 +29,9 @@ const appointmentSchema = new mongoose.Schema({
     enum: ['Pendente', 'Aguardando coleta', 'Em transporte', 'Em avaliação', 'Reciclado ou Descartado', 'Finalizado'],
     default: 'Pendente'
   },
-  destination: { type: String, enum: ['Reciclado', 'Descartado'] }
+  destination: { type: String, enum: ['Reciclado', 'Descartado'] },
+  weightKg: { type: Number, min: 0 },
+  statusHistory: { type: [statusHistorySchema], default: [] },
 }, {
   timestamps: true
 });

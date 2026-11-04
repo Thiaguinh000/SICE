@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { apiRequest } from '../services/api';
 
 export default function Register() {
   const [nome, setNome] = useState('');
@@ -11,24 +13,18 @@ export default function Register() {
     setMensagem('');
 
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/users/register`, {
+      await apiRequest('/api/users/register', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        auth: false,
         body: JSON.stringify({ nome, email, senha }),
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        return setMensagem(data.mensagem || 'Erro ao criar conta');
-      }
 
       setMensagem('Conta criada com sucesso! Você já pode fazer login.');
       setNome('');
       setEmail('');
       setSenha('');
     } catch (error) {
-      setMensagem('Erro ao conectar com o servidor');
+      setMensagem(error.message || 'Erro ao conectar com o servidor');
     }
   };
 
@@ -65,6 +61,7 @@ export default function Register() {
                       className="form-control"
                       value={nome}
                       onChange={(e) => setNome(e.target.value)}
+                      maxLength={120}
                       required
                     />
                   </div>
@@ -78,12 +75,13 @@ export default function Register() {
                       className="form-control"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
+                      autoComplete="email"
                       required
                     />
                   </div>
 
                   <div className="form-group mb-4">
-                    <label htmlFor="senha" className="text-success fw-bold">Senha:</label><br />
+                    <label htmlFor="senha" className="text-success fw-bold">Senha (mínimo 8 caracteres):</label><br />
                     <input
                       type="password"
                       name="senha"
@@ -91,6 +89,9 @@ export default function Register() {
                       className="form-control"
                       value={senha}
                       onChange={(e) => setSenha(e.target.value)}
+                      minLength={8}
+                      maxLength={128}
+                      autoComplete="new-password"
                       required
                     />
                   </div>
@@ -102,8 +103,9 @@ export default function Register() {
                       className="btn btn-success btn-md px-4"
                       value="Criar Conta"
                     />
-                    <a href="/login" className="btn btn-outline-secondary btn-md">Voltar para login</a>
+                    <Link to="/login" className="btn btn-outline-secondary btn-md">Voltar para login</Link>
                   </div>
+                  <p className="small text-center mt-3 mb-0"><Link to="/privacidade">Política de privacidade</Link></p>
                 </form>
               </div>
             </div>

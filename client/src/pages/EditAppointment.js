@@ -1,18 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-
-function parseJwt (token) {
-  try {
-    const base64Url = token.split('.')[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
-        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-    }).join(''));
-    return JSON.parse(jsonPayload);
-  } catch(e) {
-    return null;
-  }
-}
+import { apiRequest, getMinimumTime, getTodayDate } from '../services/api';
 
 export default function EditAppointment() {
   const { id } = useParams();
@@ -27,36 +15,12 @@ export default function EditAppointment() {
   const [data, setData] = useState('');
   const [hora, setHora] = useState('');
   const [observacoes, setObservacoes] = useState('');
-  const [status, setStatus] = useState('');
-  const [destination, setDestination] = useState('');
-  
   const [mensagem, setMensagem] = useState('');
-  const [userRole, setUserRole] = useState('usuario');
 
   useEffect(() => {
     const fetchAppointment = async () => {
       try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          setMensagem('Sessão expirada. Faça login novamente.');
-          return;
-        }
-
-        const decoded = parseJwt(token);
-        if (decoded && decoded.tipo) {
-          setUserRole(decoded.tipo);
-        }
-        
-        const response = await fetch(`${process.env.REACT_APP_API_URL}/api/agendamentos/${id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          setMensagem(data.mensagem || 'Erro ao buscar coleta');
-          return;
-        }
+        const data = await apiRequest(`/api/agendamentos/${id}`);
 
         setServico(data.service || '');
         setMarca(data.brand || '');
@@ -67,10 +31,8 @@ export default function EditAppointment() {
         setData(data.date ? new Date(data.date).toISOString().slice(0, 10) : '');
         setHora(data.time || '');
         setObservacoes(data.notes || '');
-        setStatus(data.status || 'Pendente');
-        setDestination(data.destination || '');
       } catch (error) {
-        setMensagem('Erro na conexão com o servidor');
+        setMensagem(error.message || 'Erro na conexão com o servidor');
       }
     };
 
@@ -82,8 +44,6 @@ export default function EditAppointment() {
     setMensagem('');
 
     try {
-      const token = localStorage.getItem('token');
-
       const bodyData = {
         service: servico,
         brand: marca,
@@ -96,34 +56,16 @@ export default function EditAppointment() {
         notes: observacoes,
       };
 
-      if (userRole === 'admin' || userRole === 'coletor') {
-        bodyData.status = status;
-        bodyData.destination = destination;
-      }
-
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/agendamentos/${id}`, {
+      await apiRequest(`/api/agendamentos/${id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify(bodyData),
       });
 
-      const resData = await response.json();
-
-      if (!response.ok) {
-        setMensagem(resData.mensagem || 'Ops! Não conseguimos atualizar. Tente novamente.');
-        return;
-      }
-
       navigate('/agendamentos/pendentes');
     } catch (error) {
-      setMensagem('Ops! Não conseguimos conectar com o servidor.');
+      setMensagem(error.message || 'Ops! Não conseguimos conectar com o servidor.');
     }
   };
-
-  const isAdminOrCollector = userRole === 'admin' || userRole === 'coletor';
 
   return (
     <div 
@@ -202,35 +144,13 @@ export default function EditAppointment() {
           <div className="row mb-3">
             <div className="col">
               <label className="form-label">Data:</label>
-              <input type="date" className="form-control" value={data} onChange={(e) => setData(e.target.value)} required />
+              <input type="date" className="form-control" min={getTodayDate()} value={data} onChange={(e) => setData(e.target.value)} required />
             </div>
             <div className="col">
               <label className="form-label">Hora:</label>
-              <input type="time" className="form-control" value={hora} onChange={(e) => setHora(e.target.value)} required />
+              <input type="time" className="form-control" min={getMinimumTime(data)} value={hora} onChange={(e) => setHora(e.target.value)} required />
             </div>
           </div>
-
-          {isAdminOrCollector && (
-            <>
-              <hr/>
-              <h5 className="text-secondary mt-3">Área Administrativa</h5>
-              <div className="mb-3">
-                <label className="form-label">Status da Coleta:</label>
-                <select className="form-control" value={status} onChange={(e) => setStatus(e.target.value)}>
-                  <option value="Pendente">Pendente</option>
-                  <option value="Aguardando coleta">Aguardando coleta</option>
-                  <option value="Em transporte">Em transporte</option>
-                  <option value="Em avaliação">Em avaliação</option>
-                  <option value="Reciclado ou Descartado">Reciclado ou Descartado</option>
-                  <option value="Finalizado">Finalizado</option>
-                </select>
-              </div>
-              <div className="mb-3">
-                <label className="form-label">Destino / Avaliação:</label>
-                <input type="text" className="form-control" value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="Ex: Doação, Reciclagem de Metais..." />
-              </div>
-            </>
-          )}
 
           <div className="mb-4">
             <label className="form-label">Observações:</label>

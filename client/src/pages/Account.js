@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { apiRequest } from '../services/api';
 
 export default function Account({ onLogout }) {
   const [profile, setProfile] = useState(null);
@@ -23,11 +24,7 @@ export default function Account({ onLogout }) {
   useEffect(() => {
     const carregarPerfil = async () => {
       try {
-        const response = await fetch(`${process.env.REACT_APP_API_URL}/api/users/profile`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-        });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.mensagem || 'Não foi possível carregar sua conta.');
+        const data = await apiRequest('/api/users/profile');
         setProfile(data);
         setNome(data.nome);
         setEmail(data.email);
@@ -57,16 +54,10 @@ export default function Account({ onLogout }) {
         body.senhaAtual = senhaAtual;
         body.novaSenha = novaSenha;
       }
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/users/profile`, {
+      const data = await apiRequest('/api/users/profile', {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
         body: JSON.stringify(body),
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.mensagem || 'Não foi possível salvar suas alterações.');
       setProfile(data.usuario);
       setNome(data.usuario.nome);
       setEmail(data.usuario.email);
@@ -88,17 +79,11 @@ export default function Account({ onLogout }) {
 
     setExcluindo(true);
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/users/profile`, {
+      const data = await apiRequest('/api/users/profile', {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
         body: JSON.stringify({ senha: senhaExclusao }),
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.mensagem || 'Não foi possível excluir sua conta.');
-      onLogout();
+      await onLogout(true);
       navigate('/login', { replace: true, state: { mensagem: data.mensagem } });
     } catch (error) {
       setErro(error.message || 'Erro na conexão com o servidor.');
@@ -107,9 +92,13 @@ export default function Account({ onLogout }) {
     }
   };
 
-  const handleSwitchAccount = () => {
-    onLogout();
-    navigate('/login', { replace: true });
+  const handleSwitchAccount = async () => {
+    try {
+      await onLogout();
+      navigate('/login', { replace: true });
+    } catch (error) {
+      setErro(error.message || 'Não foi possível encerrar a sessão.');
+    }
   };
 
   if (carregando) {
@@ -135,15 +124,15 @@ export default function Account({ onLogout }) {
             <form onSubmit={handleUpdate}>
               <h2 className="h5 eco-title-accent">Informações pessoais</h2>
               <label className="form-label" htmlFor="account-name">Nome</label>
-              <input id="account-name" className="form-control mb-3" value={nome} onChange={(event) => setNome(event.target.value)} required />
+              <input id="account-name" className="form-control mb-3" maxLength={120} value={nome} onChange={(event) => setNome(event.target.value)} required />
               <label className="form-label" htmlFor="account-email">E-mail</label>
-              <input id="account-email" className="form-control mb-4" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+              <input id="account-email" className="form-control mb-4" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
 
               <h2 className="h5 eco-title-accent">Alterar senha <small className="text-muted fw-normal">(opcional)</small></h2>
               <label className="form-label" htmlFor="current-password">Senha atual</label>
               <input id="current-password" className="form-control mb-3" type="password" autoComplete="current-password" value={senhaAtual} onChange={(event) => setSenhaAtual(event.target.value)} />
               <label className="form-label" htmlFor="new-password">Nova senha</label>
-              <input id="new-password" className="form-control mb-4" type="password" autoComplete="new-password" value={novaSenha} onChange={(event) => setNovaSenha(event.target.value)} />
+              <input id="new-password" className="form-control mb-4" type="password" minLength={8} maxLength={128} autoComplete="new-password" value={novaSenha} onChange={(event) => setNovaSenha(event.target.value)} />
               <button className="btn-eco-primary" type="submit" disabled={salvando}>
                 {salvando ? 'Salvando...' : 'Salvar alterações'}
               </button>

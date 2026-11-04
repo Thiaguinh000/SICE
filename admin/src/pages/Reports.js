@@ -41,8 +41,13 @@ export default function Reports() {
         <div className="reports-grid">
           <ReportTable
             title="Por material"
-            headers={['Material', 'Solicitações', 'Itens']}
-            rows={(reports.porMaterial || []).map((item) => [item._id || 'Não informado', item.solicitacoes, item.itens])}
+            headers={['Material', 'Solicitações', 'Itens', 'Peso medido (kg)']}
+            rows={(reports.porMaterial || []).map((item) => [
+              item._id || 'Não informado',
+              item.solicitacoes,
+              item.itens,
+              Number(item.pesoKg || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 }),
+            ])}
             emptyMessage="Sem dados de material."
           />
           <ReportTable
@@ -57,8 +62,15 @@ export default function Reports() {
             rows={(reports.porMes || []).map((item) => [item._id || 'Não informado', item.total])}
             emptyMessage="Sem dados mensais."
           />
+          <ReportTable
+            title="Peso registrado por destino (kg)"
+            headers={['Destino', 'Coletas', 'Peso medido (kg)']}
+            rows={(reports.porDestino || []).map((item) => [item._id, item.coletas, Number(item.pesoKg || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 })])}
+            emptyMessage="Nenhum peso foi registrado."
+          />
         </div>
       )}
+      <p className="small text-muted mt-3">Os totais ambientais usam somente pesos medidos e informados pela equipe. Não são estimativas de emissão ou compensação de CO₂.</p>
     </>
   );
 }

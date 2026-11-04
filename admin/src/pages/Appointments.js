@@ -59,7 +59,7 @@ export default function Appointments() {
         <div className="table-responsive admin-table-wrap">
           <table className="table align-middle mb-0">
             <thead>
-              <tr><th>Material</th><th>Cliente</th><th>Data</th><th>Status</th><th /></tr>
+              <tr><th>Material</th><th>Cliente</th><th>Responsável</th><th>Data</th><th>Status</th><th /></tr>
             </thead>
             <tbody>
               {appointments.map((appointment) => (
@@ -69,6 +69,7 @@ export default function Appointments() {
                     <div className="small text-muted">{appointment.quantity || 1} unidade(s)</div>
                   </td>
                   <td>{appointment.client?.nome || appointment.client?.email || '—'}</td>
+                  <td>{appointment.assignedCollector?.nome || 'Não atribuído'}</td>
                   <td>{formatDate(appointment.date)}{appointment.time ? ` às ${appointment.time}` : ''}</td>
                   <td><span className="status-pill">{appointment.status || 'Pendente'}</span></td>
                   <td className="text-end">

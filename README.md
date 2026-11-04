@@ -1,17 +1,11 @@
 
-# Sistema de Agendamento para salão de beleza - Stack MERN
+# SICE — Sistema Integrado de Coleta de Eletrônicos
 
-Este projeto é um **Sistema de Agendamento Online para salão de beleza**, desenvolvido utilizando a stack **MERN (MongoDB, Express, React e Node.js)**. Foi desenvolvido com fins didáticos para servir como **apoio para os alunos desenvolverem seus próprios projetos de conclusão de curso (TCC)**.
+O SICE conecta pessoas que desejam descartar eletrônicos a uma equipe que agenda, acompanha e registra a destinação das coletas. O projeto usa MongoDB, Express, React e Node.js, com interfaces separadas para clientes e administração.
 
 ## Objetivo do Projeto
 
-O sistema permite que usuários realizem:
-
-- **Agendamentos de serviços**
-- **Edição de agendamentos**
-- **Cancelamento (exclusão) de agendamentos**
-- **Listagem de agendamentos pendentes e concluídos**
-- **Autenticação de usuários (Login e Registro)**
+O sistema permite cadastro e autenticação, solicitação e acompanhamento de coletas, atualização administrativa de etapas, atribuição de coletores, planejamento diário de rotas, notificações no sistema e relatórios operacionais e ambientais baseados em peso medido.
 
 ## Tecnologias Utilizadas
 
@@ -58,7 +52,7 @@ stack-MERN/
 - ***Clone o repositório***
 
 ```bash
-git clone https://github.com/jbgoncalvess/stack-mern-agendamento
+git clone https://github.com/Thiaguinh000/SICE.git
 ```
 ### Backend
 
@@ -74,12 +68,14 @@ cd server
 npm install
 ```
 
-3. Crie um arquivo `.env` na pasta `server` com as seguintes variáveis:
+3. Copie `server/.env.example` para `server/.env` e configure:
 
 ```
 MONGO_URI=<sua_string_de_conexao_do_mongodb>
 JWT_SECRET=<sua_chave_secreta_para_assinar_e_validar_os_tokens_de_autenticação>
-PORT=<a_porta_na_qual_rodará_seu_backend>
+PORT=7777
+JWT_EXPIRES_IN=1h
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001
 ```
 
 Se o Node.js retornar `querySrv ECONNREFUSED` para uma URI `mongodb+srv`, confira a resolução DNS do registro SRV. Caso o DNS padrão usado pelo Node esteja recusando consultas, é possível configurar resolvedores acessíveis adicionando `DNS_SERVERS=8.8.8.8,8.8.4.4` ao `server/.env`. Use resolvedores permitidos pela sua rede; o valor é opcional e só afeta a resolução DNS do processo do servidor.
@@ -121,7 +117,7 @@ O backend rodará em: `http://localhost:${PORT}`
 
 ```bash
 cd client
-```++
+```
 
 2. Instale as dependências:
 
@@ -153,31 +149,23 @@ O painel ficará disponível em `http://localhost:3001`. Deixe a API (`server`) 
 
 ## Funcionalidades
 
-- **Autenticação:**
-  - Login e cadastro com segurança usando JWT e bcrypt.
-
-- **Agendamento:**
-  - Criar, listar, editar e excluir agendamentos.
-
-- **Filtros:**
-  - Filtragem de agendamentos por status (pendente, concluído).
-
-- **Proteção de rotas:**
-  - Apenas usuários autenticados acessam funcionalidades.
+- Contas de cliente e de equipe com login, edição de perfil, troca de senha, logout e exclusão da conta.
+- Solicitações de coleta com validação de data e horário, acompanhamento e cancelamento enquanto pendentes.
+- Fluxo administrativo de status com histórico, registro do destino e peso medido.
+- Atribuição de coletas a coletores e planejamento de rotas por data, horário e região aproximada.
+- Notificações internas para alterações de status e lembretes de coletas próximas.
+- Relatórios por material, status, mês e destino, usando somente pesos efetivamente registrados.
+- Página de privacidade com dados tratados e informações institucionais a confirmar.
 
 ## Segurança
 
 - As senhas dos usuários são armazenadas de forma segura usando **bcrypt** (hashing).
 - As rotas da API são protegidas usando **JWT** (JSON Web Token).
-- Apenas usuários autenticados podem criar, editar, excluir ou visualizar seus próprios agendamentos.
+- O backend valida identidade, perfil e permissões; clientes acessam somente as próprias coletas e ações da equipe são autorizadas por função.
 
 ## Como Usar no TCC?
 
-- Este projeto é uma **base funcional**, onde você pode:
-  - Alterar o tema (ex.: barbearia, consultório, academia, petshop).
-  - Adicionar novos campos (ex.: telefone, endereço, nome do cliente).
-  - Implementar novas funcionalidades (ex.: envio de email, painel admin, confirmação de agendamento).
-  - Melhorar o layout, responsividade e experiência do usuário.
+- Este é um projeto acadêmico que pode ser evoluído com integrações e regras operacionais validadas pela instituição responsável.
 
 ## Licença
 
@@ -218,15 +206,39 @@ As solicitações permanecem nos documentos existentes de `appointments`:
 
 `Pendente → Aguardando coleta → Em transporte → Em avaliação → Reciclado ou Descartado → Finalizado`
 
-Durante a avaliação, selecione `Reciclado` ou `Descartado`. O backend valida cada transição e salva o status no mesmo registro que o cliente consulta. Depois de confirmada, a solicitação não pode mais ser editada ou cancelada pelo cliente.
+Durante a avaliação, a equipe informa o destino (`Reciclado` ou `Descartado`) e o peso medido em quilogramas. O backend valida as transições, grava o histórico de status e atualiza o mesmo registro que o cliente consulta. Depois de confirmada, a solicitação não pode mais ser editada ou cancelada pelo cliente. Não há limite de capacidade de horário configurado.
+
+### Segurança e validação
+
+- Sessões JWT são entregues em cookies separados para cliente e equipe, `HttpOnly` e `SameSite=Lax`; o token não é exposto ao JavaScript nem persistido no `localStorage`.
+- Os endpoints autenticados consultam o usuário no banco em cada requisição, permitindo que contas removidas percam acesso imediatamente.
+- Login possui limite de tentativas por endereço IP em memória (cinco tentativas por janela de 15 minutos). Em implantação com múltiplas instâncias, substitua o armazenamento em memória por um backend compartilhado.
+- `ALLOWED_ORIGINS` é uma lista separada por vírgulas de origens exatas autorizadas a enviar credenciais. Atualize-a para os domínios dos dois frontends na implantação.
+- O cadastro exige senha de 8 a 128 caracteres; os campos de coleta também são validados no servidor. Datas passadas são rejeitadas.
+- A sessão expira em uma hora por padrão. `JWT_EXPIRES_IN` pode ser ajustada no servidor.
+
+### Notificações e impacto ambiental
+
+As notificações são internas ao sistema: atualizações de status são sincronizadas a partir do histórico e um lembrete é criado quando o cliente consulta a página de notificações no dia da coleta ou no dia anterior. Não há envio de e-mail ou notificação push.
+
+Os relatórios somam somente pesos registrados pela equipe durante a avaliação. Esses dados não são convertidos em estimativas de CO₂, economia ou compensação ambiental. Antes de comunicar impacto ambiental, documente uma metodologia e fontes verificáveis.
+
+### Privacidade
+
+A página `/privacidade` descreve os dados tratados e informa que o endereço é enviado ao Google Maps ao visualizar o mapa administrativo. A exclusão da conta remove o perfil e desvincula as coletas, removendo endereço e observações pessoais. O texto identifica dados institucionais e prazos de retenção ainda pendentes; confirme-os com a instituição responsável antes de disponibilizar o sistema ao público.
 
 ### API administrativa
 
 - `POST /api/admin/login` — login de `admin` e `coletor`;
+- `POST /api/admin/logout` e `GET/PATCH/DELETE /api/admin/account/profile` — sessão e perfil da equipe;
 - `GET /api/admin/dashboard` — contadores;
 - `GET /api/admin/appointments` e `GET /api/admin/appointments/:id` — coletas;
-- `PATCH /api/admin/appointments/:id/status` — transição de status e destino;
+- `PATCH /api/admin/appointments/:id/status` — transição de status, destino e peso medido;
+- `GET /api/admin/collectors` e `PATCH /api/admin/appointments/:id/assignment` — equipe e atribuição (atribuição somente para `admin`);
+- `GET /api/users/profile`, `PATCH /api/users/profile`, `DELETE /api/users/profile` e `POST /api/users/logout` — perfil e sessão do cliente;
+- `GET /api/admin/appointments?date=AAAA-MM-DD&assignedCollector=<id>` — filtros usados no planejamento diário de rotas;
+- `GET /api/users/notifications` e `PATCH /api/users/notifications/:id/read` — notificações do cliente;
 - `GET /api/admin/users` — usuários e contagem de coletas (somente `admin`);
 - `GET /api/admin/reports` — agregações por material, status e mês.
 
-Todas as rotas, exceto o login, exigem JWT e autorização no backend. Valide as regras com `npm test` na pasta `server` e compile os frontends com `npm run build` nas pastas `client` e `admin`.
+As rotas protegidas exigem sessão e autorização no backend; login e logout são públicos. Valide as regras com `npm test` na pasta `server` e compile os frontends com `npm run build` nas pastas `client` e `admin`.

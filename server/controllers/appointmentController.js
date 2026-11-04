@@ -1,5 +1,7 @@
 const Appointment = require('../models/Appointment');
+const Notification = require('../models/Notification');
 const mongoose = require('mongoose');
+const { validateAppointment } = require('../utils/appointmentValidation');
 
 // Criar novo agendamento
 const createAppointment = async (req, res) => {
@@ -8,9 +10,8 @@ const createAppointment = async (req, res) => {
   }
 
   const { date, time, service, brand, model, quantity, condition, address, notes } = req.body || {};
-  if (!date || !time || !service || !address) {
-    return res.status(400).json({ mensagem: 'Data, horário, material e endereço são obrigatórios' });
-  }
+  const validationErrors = validateAppointment({ date, time, service, brand, model, quantity, condition, address, notes });
+  if (validationErrors.length) return res.status(400).json({ mensagem: validationErrors.join('. ') });
 
   try {
     const newAppointment = new Appointment({
@@ -24,6 +25,7 @@ const createAppointment = async (req, res) => {
       condition,
       address,
       notes,
+      statusHistory: [{ status: 'Pendente', changedBy: req.userId }],
     });
 
     await newAppointment.save();
@@ -93,6 +95,15 @@ const updateAppointment = async (req, res) => {
     return res.status(400).json({ mensagem: 'Identificador de coleta inválido' });
   }
   const { date, time, service, brand, model, quantity, condition, address, notes, status, destination } = req.body || {};
+  const validationErrors = validateAppointment(
+    { date, time, service, brand, model, quantity, condition, address, notes },
+    { allowPartial: true }
+  );
+  if (validationErrors.length) return res.status(400).json({ mensagem: validationErrors.join('. ') });
+  if (!['date', 'time', 'service', 'brand', 'model', 'quantity', 'condition', 'address', 'notes']
+    .some((field) => req.body?.[field] !== undefined)) {
+    return res.status(400).json({ mensagem: 'Informe ao menos um campo para atualizar' });
+  }
 
   if (!['usuario', 'cliente'].includes(req.userTipo)) {
     return res.status(403).json({ mensagem: 'Use o fluxo administrativo para atualizar uma coleta' });
@@ -113,15 +124,15 @@ const updateAppointment = async (req, res) => {
       return res.status(403).json({ mensagem: 'A coleta não pode mais ser editada depois de confirmada' });
     }
 
-    if (date) appointment.date = date;
-    if (time) appointment.time = time;
-    if (service) appointment.service = service;
-    if (brand) appointment.brand = brand;
-    if (model) appointment.model = model;
-    if (quantity) appointment.quantity = quantity;
-    if (condition) appointment.condition = condition;
-    if (address) appointment.address = address;
-    if (notes) appointment.notes = notes;
+    if (date !== undefined) appointment.date = date;
+    if (time !== undefined) appointment.time = time;
+    if (service !== undefined) appointment.service = service.trim();
+    if (brand !== undefined) appointment.brand = brand.trim();
+    if (model !== undefined) appointment.model = model.trim();
+    if (quantity !== undefined) appointment.quantity = Number(quantity);
+    if (condition !== undefined) appointment.condition = condition.trim();
+    if (address !== undefined) appointment.address = address.trim();
+    if (notes !== undefined) appointment.notes = notes.trim();
     await appointment.save();
 
     res.json({ mensagem: 'Coleta atualizada com sucesso', agendamento: appointment });
@@ -159,6 +170,7 @@ const deleteAppointment = async (req, res) => {
     if (!deletedAppointment) {
       return res.status(409).json({ mensagem: 'A coleta foi atualizada. Recarregue os dados e tente novamente.' });
     }
+    await Notification.deleteMany({ appointment: deletedAppointment._id });
 
     res.json({ mensagem: 'Coleta cancelada com sucesso' });
   } catch (error) {

@@ -4,6 +4,6 @@ require('dotenv').config();
 module.exports = {
   JWT_SECRET: process.env.JWT_SECRET,
   MONGO_URI: process.env.MONGO_URI,
-  PORT: process.env.PORT,
+  PORT: process.env.PORT || 7777,
   DNS_SERVERS: process.env.DNS_SERVERS,
 };

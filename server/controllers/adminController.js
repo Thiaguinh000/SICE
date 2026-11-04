@@ -33,6 +33,21 @@ const getDashboard = async (req, res) => {
 
 const getAppointments = async (req, res) => {
   const filtro = {};
+  if (req.query.date) {
+    const date = new Date(`${req.query.date}T00:00:00.000Z`);
+    if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== req.query.date) {
+      return res.status(400).json({ mensagem: 'Data de filtro inválida' });
+    }
+    const nextDate = new Date(date);
+    nextDate.setUTCDate(nextDate.getUTCDate() + 1);
+    filtro.date = { $gte: date, $lt: nextDate };
+  }
+  if (req.query.assignedCollector) {
+    if (!mongoose.isValidObjectId(req.query.assignedCollector)) {
+      return res.status(400).json({ mensagem: 'Identificador de coletor inválido' });
+    }
+    filtro.assignedCollector = req.query.assignedCollector;
+  }
   if (req.query.status === 'Pendente') {
     filtro.$or = [{ status: 'Pendente' }, { status: null }];
   } else if (req.query.status) {
@@ -43,6 +58,7 @@ const getAppointments = async (req, res) => {
     const appointments = await Appointment.find(filtro)
       .sort({ createdAt: -1 })
       .populate('client', 'nome email')
+      .populate('assignedCollector', 'nome email')
       .lean();
     res.json(appointments);
   } catch (error) {
@@ -59,6 +75,7 @@ const getAppointmentDetails = async (req, res) => {
   try {
     const appointment = await Appointment.findById(req.params.id)
       .populate('client', 'nome email')
+      .populate('assignedCollector', 'nome email')
       .lean();
     if (!appointment) return res.status(404).json({ mensagem: 'Coleta não encontrada' });
     res.json(appointment);
@@ -69,12 +86,15 @@ const getAppointmentDetails = async (req, res) => {
 };
 
 const updateAppointmentStatus = async (req, res) => {
-  const { status, destination } = req.body || {};
+  const { status, destination, weightKg } = req.body || {};
   if (!mongoose.isValidObjectId(req.params.id)) {
     return res.status(400).json({ mensagem: 'Identificador de coleta inválido' });
   }
   if (typeof status !== 'string' || (destination !== undefined && !destinations.includes(destination))) {
     return res.status(400).json({ mensagem: 'Status ou destino inválido' });
+  }
+  if (weightKg !== undefined && (!Number.isFinite(Number(weightKg)) || Number(weightKg) <= 0 || Number(weightKg) > 100000)) {
+    return res.status(400).json({ mensagem: 'Informe um peso real maior que zero e menor que 100000 kg' });
   }
 
   try {
@@ -84,6 +104,9 @@ const updateAppointmentStatus = async (req, res) => {
     const previousStatus = appointment.status || 'Pendente';
     const transitionError = getTransitionError(previousStatus, status, destination);
     if (transitionError) return res.status(400).json({ mensagem: transitionError });
+    if (status === 'Reciclado ou Descartado' && weightKg === undefined) {
+      return res.status(400).json({ mensagem: 'Registre o peso medido pela equipe para concluir a avaliação' });
+    }
 
     const filter = { _id: appointment._id };
     if (previousStatus === 'Pendente') {
@@ -92,13 +115,28 @@ const updateAppointmentStatus = async (req, res) => {
       filter.status = previousStatus;
     }
     const update = { status };
-    if (status === 'Reciclado ou Descartado') update.destination = destination;
+    if (status === 'Reciclado ou Descartado') {
+      update.destination = destination;
+      update.weightKg = Number(weightKg);
+    }
 
     const updatedAppointment = await Appointment.findOneAndUpdate(
       filter,
-      { $set: update },
+      {
+        $set: update,
+        $push: {
+          statusHistory: {
+            status,
+            changedAt: new Date(),
+            changedBy: req.userId,
+            ...(status === 'Reciclado ou Descartado' ? { destination, weightKg: Number(weightKg) } : {}),
+          },
+        },
+      },
       { new: true, runValidators: true }
-    ).populate('client', 'nome email');
+    )
+      .populate('client', 'nome email')
+      .populate('assignedCollector', 'nome email');
     if (!updatedAppointment) {
       return res.status(409).json({ mensagem: 'A coleta foi atualizada por outra pessoa. Recarregue os dados.' });
     }
@@ -107,6 +145,45 @@ const updateAppointmentStatus = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ mensagem: 'Não foi possível atualizar o status da coleta' });
+  }
+};
+
+const getCollectors = async (req, res) => {
+  try {
+    const collectors = await User.find({ tipo: 'coletor' })
+      .select('nome email')
+      .sort({ nome: 1 })
+      .lean();
+    res.json(collectors);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ mensagem: 'Não foi possível carregar a equipe de coleta' });
+  }
+};
+
+const assignCollector = async (req, res) => {
+  const { collectorId } = req.body || {};
+  if (!mongoose.isValidObjectId(req.params.id)
+    || (collectorId !== null && !mongoose.isValidObjectId(collectorId))) {
+    return res.status(400).json({ mensagem: 'Identificador de coleta ou coletor inválido' });
+  }
+
+  try {
+    if (collectorId && !await User.exists({ _id: collectorId, tipo: 'coletor' })) {
+      return res.status(404).json({ mensagem: 'Coletor não encontrado' });
+    }
+    const appointment = await Appointment.findByIdAndUpdate(
+      req.params.id,
+      { $set: { assignedCollector: collectorId || null } },
+      { new: true, runValidators: true }
+    )
+      .populate('assignedCollector', 'nome email')
+      .lean();
+    if (!appointment) return res.status(404).json({ mensagem: 'Coleta não encontrada' });
+    res.json({ mensagem: 'Responsável pela coleta atualizado', assignedCollector: appointment.assignedCollector });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ mensagem: 'Não foi possível atribuir o coletor' });
   }
 };
 
@@ -129,9 +206,16 @@ const getUsers = async (req, res) => {
 
 const getReports = async (req, res) => {
   try {
-    const [porMaterial, porStatus, porMes] = await Promise.all([
+    const [porMaterial, porStatus, porMes, porDestino] = await Promise.all([
       Appointment.aggregate([
-        { $group: { _id: '$service', solicitacoes: { $sum: 1 }, itens: { $sum: { $ifNull: ['$quantity', 1] } } } },
+        {
+          $group: {
+            _id: '$service',
+            solicitacoes: { $sum: 1 },
+            itens: { $sum: { $ifNull: ['$quantity', 1] } },
+            pesoKg: { $sum: { $ifNull: ['$weightKg', 0] } },
+          },
+        },
         { $sort: { solicitacoes: -1, _id: 1 } },
       ]),
       Appointment.aggregate([
@@ -149,8 +233,18 @@ const getReports = async (req, res) => {
         { $limit: 12 },
         { $sort: { _id: 1 } },
       ]),
+      Appointment.aggregate([
+        {
+          $group: {
+            _id: { $ifNull: ['$destination', 'Sem destino'] },
+            coletas: { $sum: 1 },
+            pesoKg: { $sum: { $ifNull: ['$weightKg', 0] } },
+          },
+        },
+        { $sort: { _id: 1 } },
+      ]),
     ]);
-    res.json({ porMaterial, porStatus, porMes });
+    res.json({ porMaterial, porStatus, porMes, porDestino });
   } catch (error) {
     console.error(error);
     res.status(500).json({ mensagem: 'Não foi possível carregar os relatórios' });
@@ -162,6 +256,8 @@ module.exports = {
   getAppointments,
   getAppointmentDetails,
   updateAppointmentStatus,
+  getCollectors,
+  assignCollector,
   getUsers,
   getReports,
 };
