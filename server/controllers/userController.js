@@ -237,7 +237,10 @@ const deleteUserAccount = async (req, res) => {
     );
     await Appointment.updateMany(
       { assignedCollector: usuario._id },
-      { $set: { assignedCollector: null } }
+      {
+        $set: { assignedCollector: null },
+        $unset: { assignedCollectorName: '' },
+      }
     );
     await Notification.deleteMany({ user: usuario._id });
     await User.deleteOne({ _id: usuario._id });

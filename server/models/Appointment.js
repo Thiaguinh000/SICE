@@ -15,6 +15,7 @@ const statusHistorySchema = new mongoose.Schema({
 const appointmentSchema = new mongoose.Schema({
   client: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null},
   assignedCollector: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  assignedCollectorName: { type: String, default: '', maxlength: 120 },
   date: { type: Date, required: true},
   time: { type: String, required: true},
   service: {type: String, required: true}, // material
@@ -24,6 +25,8 @@ const appointmentSchema = new mongoose.Schema({
   condition: String,
   address: { type: String, default: ''},
   notes: String,
+  adminNotes: { type: String, default: '', maxlength: 2000 },
+  reportFinalizedAt: { type: Date, default: null },
   status: {
     type: String,
     enum: ['Pendente', 'Aguardando coleta', 'Em transporte', 'Em avaliação', 'Reciclado ou Descartado', 'Finalizado'],

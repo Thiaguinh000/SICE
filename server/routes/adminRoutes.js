@@ -8,8 +8,8 @@ const {
   getAppointments,
   getAppointmentDetails,
   updateAppointmentStatus,
+  finalizeAppointmentReport,
   getCollectors,
-  assignCollector,
   getUsers,
   getReports,
 } = require('../controllers/adminController');
@@ -33,7 +33,7 @@ router.get('/appointments', ...requireStaff, getAppointments);
 router.get('/collectors', ...requireStaff, getCollectors);
 router.get('/appointments/:id', ...requireStaff, getAppointmentDetails);
 router.patch('/appointments/:id/status', ...requireStaff, updateAppointmentStatus);
-router.patch('/appointments/:id/assignment', ...requireAdmin, assignCollector);
+router.patch('/appointments/:id/finalize-report', ...requireAdmin, finalizeAppointmentReport);
 router.get('/users', ...requireAdmin, getUsers);
 router.get('/reports', ...requireStaff, getReports);
 

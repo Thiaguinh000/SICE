@@ -55,11 +55,12 @@ const getAppointments = async (req, res) => {
   }
 
   try {
-    const appointments = await Appointment.find(filtro)
+    const appointmentsQuery = Appointment.find(filtro)
       .sort({ createdAt: -1 })
       .populate('client', 'nome email')
-      .populate('assignedCollector', 'nome email')
-      .lean();
+      .populate('assignedCollector', 'nome email');
+    if (req.userTipo !== 'admin') appointmentsQuery.select('-adminNotes');
+    const appointments = await appointmentsQuery.lean();
     res.json(appointments);
   } catch (error) {
     console.error(error);
@@ -73,10 +74,11 @@ const getAppointmentDetails = async (req, res) => {
   }
 
   try {
-    const appointment = await Appointment.findById(req.params.id)
+    const appointmentQuery = Appointment.findById(req.params.id)
       .populate('client', 'nome email')
-      .populate('assignedCollector', 'nome email')
-      .lean();
+      .populate('assignedCollector', 'nome email');
+    if (req.userTipo !== 'admin') appointmentQuery.select('-adminNotes');
+    const appointment = await appointmentQuery.lean();
     if (!appointment) return res.status(404).json({ mensagem: 'Coleta não encontrada' });
     res.json(appointment);
   } catch (error) {
@@ -96,7 +98,6 @@ const updateAppointmentStatus = async (req, res) => {
   if (weightKg !== undefined && (!Number.isFinite(Number(weightKg)) || Number(weightKg) <= 0 || Number(weightKg) > 100000)) {
     return res.status(400).json({ mensagem: 'Informe um peso real maior que zero e menor que 100000 kg' });
   }
-
   try {
     const appointment = await Appointment.findById(req.params.id);
     if (!appointment) return res.status(404).json({ mensagem: 'Coleta não encontrada' });
@@ -107,7 +108,6 @@ const updateAppointmentStatus = async (req, res) => {
     if (status === 'Reciclado ou Descartado' && weightKg === undefined) {
       return res.status(400).json({ mensagem: 'Registre o peso medido pela equipe para concluir a avaliação' });
     }
-
     const filter = { _id: appointment._id };
     if (previousStatus === 'Pendente') {
       filter.$or = [{ status: 'Pendente' }, { status: null }];
@@ -119,7 +119,6 @@ const updateAppointmentStatus = async (req, res) => {
       update.destination = destination;
       update.weightKg = Number(weightKg);
     }
-
     const updatedAppointment = await Appointment.findOneAndUpdate(
       filter,
       {
@@ -141,10 +140,71 @@ const updateAppointmentStatus = async (req, res) => {
       return res.status(409).json({ mensagem: 'A coleta foi atualizada por outra pessoa. Recarregue os dados.' });
     }
 
-    res.json({ mensagem: 'Status da coleta atualizado com sucesso', agendamento: updatedAppointment });
+    const responseAppointment = updatedAppointment.toObject();
+    if (req.userTipo !== 'admin') delete responseAppointment.adminNotes;
+    res.json({ mensagem: 'Status da coleta atualizado com sucesso', agendamento: responseAppointment });
   } catch (error) {
     console.error(error);
     res.status(500).json({ mensagem: 'Não foi possível atualizar o status da coleta' });
+  }
+};
+
+const finalizeAppointmentReport = async (req, res) => {
+  const { adminNotes, collectorId, collectorName } = req.body || {};
+  const notes = adminNotes === undefined ? '' : adminNotes;
+  const hasCollectorId = collectorId !== undefined;
+  const hasCollectorName = typeof collectorName === 'string'
+    && collectorName.trim().length > 0
+    && collectorName.trim().length <= 120;
+  if (!mongoose.isValidObjectId(req.params.id)
+    || typeof notes !== 'string'
+    || notes.length > 2000
+    || hasCollectorId === hasCollectorName
+    || (hasCollectorId && (typeof collectorId !== 'string' || !mongoose.isValidObjectId(collectorId)))
+    || (collectorName !== undefined && !hasCollectorName)) {
+    return res.status(400).json({ mensagem: 'Informe uma observação de até 2000 caracteres e um responsável válido' });
+  }
+
+  try {
+    if (hasCollectorId && !await User.exists({ _id: collectorId, tipo: 'coletor' })) {
+      return res.status(404).json({ mensagem: 'Coletor não encontrado' });
+    }
+
+    const appointment = await Appointment.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        $or: [{ reportFinalizedAt: null }, { reportFinalizedAt: { $exists: false } }],
+      },
+      {
+        $set: {
+          adminNotes: notes.trim(),
+          assignedCollector: hasCollectorId ? collectorId : null,
+          assignedCollectorName: hasCollectorName ? collectorName.trim() : '',
+          reportFinalizedAt: new Date(),
+        },
+      },
+      { new: true, runValidators: true }
+    )
+      .populate('assignedCollector', 'nome email')
+      .lean();
+    if (!appointment) {
+      const exists = await Appointment.exists({ _id: req.params.id });
+      if (!exists) return res.status(404).json({ mensagem: 'Coleta não encontrada' });
+      return res.status(409).json({ mensagem: 'O relatório desta coleta já foi finalizado' });
+    }
+    res.json({
+      mensagem: 'Relatório da coleta finalizado',
+      appointment: {
+        _id: appointment._id,
+        adminNotes: appointment.adminNotes,
+        assignedCollector: appointment.assignedCollector,
+        assignedCollectorName: appointment.assignedCollectorName,
+        reportFinalizedAt: appointment.reportFinalizedAt,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ mensagem: 'Não foi possível salvar os dados administrativos da coleta' });
   }
 };
 
@@ -158,32 +218,6 @@ const getCollectors = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ mensagem: 'Não foi possível carregar a equipe de coleta' });
-  }
-};
-
-const assignCollector = async (req, res) => {
-  const { collectorId } = req.body || {};
-  if (!mongoose.isValidObjectId(req.params.id)
-    || (collectorId !== null && !mongoose.isValidObjectId(collectorId))) {
-    return res.status(400).json({ mensagem: 'Identificador de coleta ou coletor inválido' });
-  }
-
-  try {
-    if (collectorId && !await User.exists({ _id: collectorId, tipo: 'coletor' })) {
-      return res.status(404).json({ mensagem: 'Coletor não encontrado' });
-    }
-    const appointment = await Appointment.findByIdAndUpdate(
-      req.params.id,
-      { $set: { assignedCollector: collectorId || null } },
-      { new: true, runValidators: true }
-    )
-      .populate('assignedCollector', 'nome email')
-      .lean();
-    if (!appointment) return res.status(404).json({ mensagem: 'Coleta não encontrada' });
-    res.json({ mensagem: 'Responsável pela coleta atualizado', assignedCollector: appointment.assignedCollector });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ mensagem: 'Não foi possível atribuir o coletor' });
   }
 };
 
@@ -206,7 +240,7 @@ const getUsers = async (req, res) => {
 
 const getReports = async (req, res) => {
   try {
-    const [porMaterial, porStatus, porMes, porDestino] = await Promise.all([
+    const [porMaterial, porStatus, porMes, porDestino, coletas] = await Promise.all([
       Appointment.aggregate([
         {
           $group: {
@@ -243,8 +277,21 @@ const getReports = async (req, res) => {
         },
         { $sort: { _id: 1 } },
       ]),
+      req.userTipo === 'admin'
+        ? Appointment.find()
+          .select('service date time status adminNotes assignedCollector assignedCollectorName reportFinalizedAt')
+          .populate('assignedCollector', 'nome email')
+          .sort({ date: -1, time: 1 })
+          .lean()
+        : Promise.resolve([]),
     ]);
-    res.json({ porMaterial, porStatus, porMes, porDestino });
+    res.json({
+      porMaterial,
+      porStatus,
+      porMes,
+      porDestino,
+      ...(req.userTipo === 'admin' ? { coletas } : {}),
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ mensagem: 'Não foi possível carregar os relatórios' });
@@ -256,8 +303,8 @@ module.exports = {
   getAppointments,
   getAppointmentDetails,
   updateAppointmentStatus,
+  finalizeAppointmentReport,
   getCollectors,
-  assignCollector,
   getUsers,
   getReports,
 };

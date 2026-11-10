@@ -51,7 +51,9 @@ const getAppointments = async (req, res) => {
   if (status) filtro.status = status;
 
   try {
-    const agendamentos = await Appointment.find(filtro).sort({ date: 1 }).populate('client', 'nome email');
+    const appointmentsQuery = Appointment.find(filtro).sort({ date: 1 }).populate('client', 'nome email');
+    if (userTipo === 'usuario' || userTipo === 'cliente') appointmentsQuery.select('-adminNotes -assignedCollectorName');
+    const agendamentos = await appointmentsQuery;
     res.json(agendamentos);
   } catch (error) {
     console.error(error);
@@ -75,7 +77,9 @@ const getAppointmentById = async (req, res) => {
       filtro.client = req.userId;
     }
 
-    const appointment = await Appointment.findOne(filtro).populate('client', 'nome email');
+    const appointmentQuery = Appointment.findOne(filtro).populate('client', 'nome email');
+    if (req.userTipo === 'usuario' || req.userTipo === 'cliente') appointmentQuery.select('-adminNotes -assignedCollectorName');
+    const appointment = await appointmentQuery;
 
     if (!appointment) {
       return res.status(404).json({ message: 'Coleta não encontrada' });
@@ -115,7 +119,7 @@ const updateAppointment = async (req, res) => {
       return res.status(403).json({ mensagem: 'Você não tem permissão para alterar o status ou o destino da coleta' });
     }
 
-    const appointment = await Appointment.findOne(filtro);
+    const appointment = await Appointment.findOne(filtro).select('-adminNotes -assignedCollectorName');
 
     if (!appointment) {
       return res.status(404).json({ mensagem: 'Coleta não encontrada' });

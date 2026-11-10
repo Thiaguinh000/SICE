@@ -62,7 +62,7 @@ export default function App() {
         <Route path="/criar-conta-admin" element={<AdminAccountSetup />} />
         <Route path="/" element={<ProtectedAdmin user={user} checkingSession={checkingSession} onLogout={handleLogout} />}>
           <Route index element={<Dashboard user={user} />} />
-          <Route path="coletas" element={<Appointments />} />
+          <Route path="coletas" element={<Appointments isAdmin={user?.tipo === 'admin'} />} />
           <Route path="rotas" element={<RoutePlanning />} />
           <Route path="coletas/:id" element={<AppointmentDetails isAdmin={user?.tipo === 'admin'} />} />
           <Route path="conta" element={<Account onLogout={handleLogout} />} />
@@ -70,7 +70,7 @@ export default function App() {
             path="usuarios"
             element={user?.tipo === 'admin' ? <Users /> : <Navigate to="/" replace />}
           />
-          <Route path="relatorios" element={<Reports />} />
+          <Route path="relatorios" element={<Reports isAdmin={user?.tipo === 'admin'} />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

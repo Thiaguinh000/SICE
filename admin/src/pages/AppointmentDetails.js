@@ -16,9 +16,6 @@ export default function AppointmentDetails({ isAdmin }) {
   const [appointment, setAppointment] = useState(null);
   const [destination, setDestination] = useState('Reciclado');
   const [weightKg, setWeightKg] = useState('');
-  const [collectors, setCollectors] = useState([]);
-  const [collectorId, setCollectorId] = useState('');
-  const [savingAssignment, setSavingAssignment] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -30,14 +27,7 @@ export default function AppointmentDetails({ isAdmin }) {
 
   useEffect(() => {
     loadAppointment();
-    if (isAdmin) {
-      adminRequest('/collectors').then(setCollectors).catch((requestError) => setError(requestError.message));
-    }
-  }, [isAdmin, loadAppointment]);
-
-  useEffect(() => {
-    setCollectorId(appointment?.assignedCollector?._id || '');
-  }, [appointment]);
+  }, [loadAppointment]);
 
   const advanceStatus = async () => {
     const status = nextStatus[appointment.status || 'Pendente'];
@@ -58,23 +48,6 @@ export default function AppointmentDetails({ isAdmin }) {
       setError(requestError.message);
     } finally {
       setSaving(false);
-    }
-  };
-
-  const saveAssignment = async (event) => {
-    event.preventDefault();
-    setSavingAssignment(true);
-    setError('');
-    try {
-      await adminRequest(`/appointments/${id}/assignment`, {
-        method: 'PATCH',
-        body: JSON.stringify({ collectorId: collectorId || null }),
-      });
-      await loadAppointment();
-    } catch (requestError) {
-      setError(requestError.message);
-    } finally {
-      setSavingAssignment(false);
     }
   };
 
@@ -107,28 +80,15 @@ export default function AppointmentDetails({ isAdmin }) {
             <div><span>Destino</span><strong>{appointment.destination || '—'}</strong></div>
             <div><span>Cliente</span><strong>{appointment.client?.nome || '—'}</strong></div>
             <div><span>E-mail</span><strong>{appointment.client?.email || '—'}</strong></div>
-            <div><span>Responsável pela coleta</span><strong>{appointment.assignedCollector?.nome || 'Não atribuído'}</strong></div>
+            <div><span>Responsável pela coleta</span><strong>{appointment.assignedCollector?.nome || appointment.assignedCollectorName || 'Não atribuído'}</strong></div>
             <div><span>Data e horário</span><strong>{appointment.date ? new Date(appointment.date).toLocaleDateString('pt-BR') : '—'} {appointment.time || ''}</strong></div>
             <div><span>Endereço</span><strong>{appointment.address || '—'}</strong></div>
             <div><span>Marca / modelo</span><strong>{[appointment.brand, appointment.model].filter(Boolean).join(' / ') || '—'}</strong></div>
             <div><span>Condição</span><strong>{appointment.condition || '—'}</strong></div>
             <div><span>Peso medido</span><strong>{appointment.weightKg ? `${appointment.weightKg} kg` : '—'}</strong></div>
-            <div className="detail-wide"><span>Observações</span><strong>{appointment.notes || '—'}</strong></div>
+            <div className="detail-wide"><span>Observações do cliente</span><strong>{appointment.notes || '—'}</strong></div>
+            {isAdmin && <div className="detail-wide"><span>Observações administrativas</span><strong>{appointment.adminNotes || '—'}</strong></div>}
           </div>
-          {isAdmin && <form className="status-action" onSubmit={saveAssignment}>
-            <label className="flex-grow-1">
-              Coletor responsável
-              <select className="form-select mt-1" value={collectorId} onChange={(event) => setCollectorId(event.target.value)}>
-                <option value="">Sem responsável</option>
-                {collectors.map((collector) => (
-                  <option key={collector._id} value={collector._id}>{collector.nome} ({collector.email})</option>
-                ))}
-              </select>
-            </label>
-            <button className="btn btn-outline-success" type="submit" disabled={savingAssignment}>
-              {savingAssignment ? 'Salvando...' : 'Atribuir coleta'}
-            </button>
-          </form>}
           <section className="location-section" aria-labelledby="status-history-title">
             <h2 id="status-history-title">Histórico da coleta</h2>
             {appointment.statusHistory?.length ? (

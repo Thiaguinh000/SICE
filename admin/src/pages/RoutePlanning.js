@@ -109,7 +109,7 @@ export default function RoutePlanning() {
                           <td>{appointment.time || '—'}</td>
                           <td>{appointment.address || 'Endereço removido'}</td>
                           <td>{appointment.service} ({appointment.quantity || 1})</td>
-                          <td>{appointment.assignedCollector?.nome || 'Não atribuído'}</td>
+                          <td>{appointment.assignedCollector?.nome || appointment.assignedCollectorName || 'Não atribuído'}</td>
                           <td className="text-end">
                             <Link className="btn btn-sm btn-outline-success" to={`/coletas/${appointment._id}`}>Detalhes</Link>
                           </td>
