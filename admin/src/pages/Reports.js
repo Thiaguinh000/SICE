@@ -57,6 +57,18 @@ function CollectionReportRow({ appointment, collectors, onSaved }) {
         <div className="small text-muted">{appointment.status || 'Pendente'}</div>
       </td>
       <td>
+        <dl className="small mb-0">
+          <div><dt className="d-inline">Cliente: </dt><dd className="d-inline">{appointment.client?.nome || appointment.client?.email || '—'}</dd></div>
+          <div><dt className="d-inline">Horário: </dt><dd className="d-inline">{appointment.time || '—'}</dd></div>
+          <div><dt className="d-inline">Endereço: </dt><dd className="d-inline">{appointment.address || '—'}</dd></div>
+          <div><dt className="d-inline">Quantidade: </dt><dd className="d-inline">{appointment.quantity || 1}</dd></div>
+          <div><dt className="d-inline">Marca / modelo: </dt><dd className="d-inline">{[appointment.brand, appointment.model].filter(Boolean).join(' / ') || '—'}</dd></div>
+          <div><dt className="d-inline">Condição: </dt><dd className="d-inline">{appointment.condition || '—'}</dd></div>
+          <div><dt className="d-inline">Destino / peso: </dt><dd className="d-inline">{appointment.destination || '—'}{appointment.weightKg ? ` / ${appointment.weightKg} kg` : ''}</dd></div>
+          <div><dt className="d-inline">Observação do cliente: </dt><dd className="d-inline">{appointment.notes || '—'}</dd></div>
+        </dl>
+      </td>
+      <td>
         {appointment.reportFinalizedAt ? (
           appointment.assignedCollector?.nome || appointment.assignedCollectorName || '—'
         ) : editing ? (
@@ -153,6 +165,10 @@ export default function Reports({ isAdmin }) {
   const [reports, setReports] = useState(null);
   const [appointments, setAppointments] = useState(null);
   const [collectors, setCollectors] = useState([]);
+  const [appointmentStatusFilter, setAppointmentStatusFilter] = useState('');
+  const [materialFilter, setMaterialFilter] = useState('');
+  const [reportStatusFilter, setReportStatusFilter] = useState('');
+  const [appointmentSort, setAppointmentSort] = useState('date-desc');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -180,6 +196,20 @@ export default function Reports({ isAdmin }) {
     )));
   };
 
+  const appointmentStatuses = [...new Set((appointments || []).map((appointment) => appointment.status || 'Pendente'))].sort();
+  const materials = [...new Set((appointments || []).map((appointment) => appointment.service).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const organizedAppointments = (appointments || [])
+    .filter((appointment) => !appointmentStatusFilter || (appointment.status || 'Pendente') === appointmentStatusFilter)
+    .filter((appointment) => !materialFilter || appointment.service === materialFilter)
+    .filter((appointment) => !reportStatusFilter
+      || (reportStatusFilter === 'finalized' ? Boolean(appointment.reportFinalizedAt) : !appointment.reportFinalizedAt))
+    .sort((a, b) => {
+      if (appointmentSort === 'material') return (a.service || '').localeCompare(b.service || '', 'pt-BR');
+      if (appointmentSort === 'status') return (a.status || 'Pendente').localeCompare(b.status || 'Pendente', 'pt-BR');
+      const dateDifference = new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime();
+      return appointmentSort === 'date-asc' ? dateDifference : -dateDifference;
+    });
+
   return (
     <>
       <div className="page-heading">
@@ -195,12 +225,48 @@ export default function Reports({ isAdmin }) {
               ? <EmptyState>Nenhuma coleta registrada.</EmptyState>
               : (
                 <div className="table-responsive">
+                  <div className="row g-2 mb-3">
+                    <div className="col-12 col-md-6 col-xl-3">
+                      <label className="form-label" htmlFor="report-appointment-status">Filtrar por status da coleta</label>
+                      <select id="report-appointment-status" className="form-select form-select-sm" value={appointmentStatusFilter} onChange={(event) => setAppointmentStatusFilter(event.target.value)}>
+                        <option value="">Todos os status</option>
+                        {appointmentStatuses.map((status) => <option key={status} value={status}>{status}</option>)}
+                      </select>
+                    </div>
+                    <div className="col-12 col-md-6 col-xl-3">
+                      <label className="form-label" htmlFor="report-material">Filtrar por material</label>
+                      <select id="report-material" className="form-select form-select-sm" value={materialFilter} onChange={(event) => setMaterialFilter(event.target.value)}>
+                        <option value="">Todos os materiais</option>
+                        {materials.map((material) => <option key={material} value={material}>{material}</option>)}
+                      </select>
+                    </div>
+                    <div className="col-12 col-md-6 col-xl-3">
+                      <label className="form-label" htmlFor="report-finalization-status">Estado do relatório</label>
+                      <select id="report-finalization-status" className="form-select form-select-sm" value={reportStatusFilter} onChange={(event) => setReportStatusFilter(event.target.value)}>
+                        <option value="">Todos</option>
+                        <option value="pending">Pendente</option>
+                        <option value="finalized">Finalizado</option>
+                      </select>
+                    </div>
+                    <div className="col-12 col-md-6 col-xl-3">
+                      <label className="form-label" htmlFor="report-appointment-sort">Ordenar por</label>
+                      <select id="report-appointment-sort" className="form-select form-select-sm" value={appointmentSort} onChange={(event) => setAppointmentSort(event.target.value)}>
+                        <option value="date-desc">Data (mais recente)</option>
+                        <option value="date-asc">Data (mais antiga)</option>
+                        <option value="material">Material (A–Z)</option>
+                        <option value="status">Status</option>
+                      </select>
+                    </div>
+                    <div className="col-12 small text-muted align-self-end">
+                      Exibindo {organizedAppointments.length} de {appointments.length} coletas
+                    </div>
+                  </div>
                   <table className="table table-sm align-middle mb-0">
                     <thead>
-                      <tr><th>Data / status</th><th>Material</th><th>Responsável</th><th>Observação administrativa</th><th>Relatório</th></tr>
+                      <tr><th>Data / status</th><th>Material</th><th>Detalhes da coleta</th><th>Responsável</th><th>Observação administrativa</th><th>Relatório</th></tr>
                     </thead>
                     <tbody>
-                      {appointments.map((appointment) => (
+                      {organizedAppointments.map((appointment) => (
                         <CollectionReportRow
                           key={appointment._id}
                           appointment={appointment}
@@ -208,6 +274,9 @@ export default function Reports({ isAdmin }) {
                           onSaved={updateReportedAppointment}
                         />
                       ))}
+                      {organizedAppointments.length === 0 && (
+                        <tr><td colSpan="6"><EmptyState>Nenhuma coleta corresponde aos filtros.</EmptyState></td></tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
