@@ -116,6 +116,7 @@ export default function NewAppointment() {
                 <option value="Com defeito">Com defeito</option>
                 <option value="Quebrado">Quebrado</option>
                 <option value="Faltando peças">Faltando peças</option>
+                <option value="Não sei informar">Não sei informar</option>
               </select>
             </div>
           </div>

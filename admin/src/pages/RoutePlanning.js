@@ -13,7 +13,7 @@ function todayDate() {
 }
 
 export default function RoutePlanning() {
-  const [date, setDate] = useState(todayDate);
+  const [date, setDate] = useState('');
   const [collectorId, setCollectorId] = useState('');
   const [collectors, setCollectors] = useState([]);
   const [appointments, setAppointments] = useState([]);
@@ -27,6 +27,34 @@ export default function RoutePlanning() {
   }, []);
 
   useEffect(() => {
+    let active = true;
+    adminRequest('/appointments')
+      .then((data) => {
+        if (!active) return;
+        const today = todayDate();
+        const dates = data
+          .filter((appointment) => appointment.status !== 'Finalizado')
+          .map((appointment) => {
+            const appointmentDate = new Date(appointment.date);
+            return Number.isNaN(appointmentDate.getTime()) ? '' : appointmentDate.toISOString().slice(0, 10);
+          })
+          .filter(Boolean)
+          .sort();
+        const nextDate = dates.find((appointmentDate) => appointmentDate >= today);
+        const previousDate = dates.filter((appointmentDate) => appointmentDate < today).pop();
+        setDate(nextDate || previousDate || today);
+      })
+      .catch((requestError) => {
+        if (active) {
+          setError(requestError.message);
+          setLoading(false);
+        }
+      });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!date) return undefined;
     let active = true;
     setLoading(true);
     setError('');
@@ -75,7 +103,7 @@ export default function RoutePlanning() {
         </div>
         <label className="filter-control">
           <span className="visually-hidden">Data das coletas</span>
-          <input className="form-control mb-2" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+          <input className="form-control mb-2" type="date" value={date} disabled={!date} onChange={(event) => setDate(event.target.value)} />
           <span className="visually-hidden">Filtrar coletas por responsável</span>
           <select className="form-select" value={collectorId} onChange={(event) => setCollectorId(event.target.value)}>
             <option value="">Todos os coletores</option>
